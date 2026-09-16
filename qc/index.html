@@ -140,7 +140,7 @@ img{ max-width:100%; }
   color:var(--muted); font-weight:600; width:72px; flex:none; }
 .mrow .seg{ display:flex; gap:5px; flex:1; }
 .mrow .seg button{ flex:1; background:var(--paper); border:1.5px solid var(--line); border-radius:7px;
-  padding:7px 4px; font-size:13px; font-weight:600; color:var(--muted-2); min-height:40px; }
+  padding:6px 3px; font-size:12px; font-weight:600; color:var(--muted-2); min-height:36px; }
 .mrow .seg button[aria-pressed="true"][data-v="Yes"]{ background:var(--pass-bg); border-color:var(--pass); color:var(--pass); }
 .mrow .seg button[aria-pressed="true"][data-v="No"]{ background:var(--fail-bg); border-color:var(--fail); color:var(--fail); }
 .mrow .seg button[aria-pressed="true"][data-v="NA"]{ background:var(--na-bg); border-color:var(--na); color:var(--na); }
@@ -211,7 +211,12 @@ img{ max-width:100%; }
 .cta:disabled{ background:#C6CED8; cursor:not-allowed; }
 .cta.ghost2{ background:var(--paper); color:var(--navy); border:1.5px solid var(--line); margin-top:8px; }
 .cta.ghost2:hover{ border-color:var(--teal); color:var(--teal); background:var(--paper); }
+.cta.incomplete{ background:#C6CED8; }
+.cta.incomplete:hover{ background:#BAC3CF; }
 .hint{ text-align:center; font-size:11.5px; color:var(--muted); margin:8px 0 0; }
+.hint.warn{ color:var(--fail); font-weight:600; }
+.qa.flag{ animation:qaflag 1.8s ease; }
+@keyframes qaflag{ 0%,100%{ background:transparent; } 15%,55%{ background:var(--fail-bg); } }
 
 /* process flow */
 .flow{ padding:18px 18px 8px; }
@@ -328,6 +333,26 @@ td.c.Yes{ color:var(--pass); } td.c.No{ color:var(--fail); } td.c.NA{ color:var(
   .sigs,.meta{ grid-template-columns:1fr; }
   .lh{ flex-direction:column; align-items:flex-start; padding:16px; }
   .meta,.tw,.rep-h,.sigs,.repfoot,.cmt{ margin-left:16px; margin-right:16px; }
+}
+
+/* print / PDF export — always renders the desktop report layout, on A4, with the
+   app chrome stripped out, regardless of the on-screen window width (a narrow phone
+   window would otherwise trigger the mobile rules above during printing too) */
+@media print{
+  @page{ size:A4; margin:0.75cm; }
+  html,body{ background:#fff !important; }
+  .proto-bar, .notice, .rep-actions{ display:none !important; }
+  #stage{ display:none !important; }
+  .rep-stage{ padding:0 !important; display:block !important; }
+  .a4{ width:100% !important; max-width:100% !important; box-shadow:none !important; }
+  .lh{ flex-direction:row !important; align-items:center !important; padding:22px 30px !important; }
+  .meta,.sigs{ grid-template-columns:repeat(3,1fr) !important; }
+  .meta,.tw,.rep-h,.sigs,.repfoot,.cmt,.wmark{ margin-left:30px !important; margin-right:30px !important; }
+  .rphotos{ grid-template-columns:repeat(4,1fr) !important; margin:0 30px !important; }
+  table.rep{ font-size:10.5px; }
+  table.rep tr{ page-break-inside:avoid; }
+  .sigbox{ page-break-inside:avoid; }
+  .rep-h{ page-break-after:avoid; }
 }
 
 .loadbox{ margin:14px 18px; padding:14px 16px; border-radius:8px; font-size:13px;
@@ -572,7 +597,7 @@ function signOut(){
       <div class="policy" id="pol"></div>
       <div class="scroll" id="items"></div>
       <div class="bar">
-        <button class="cta" id="to-signoff" disabled>Proceed to sign-off</button>
+        <button class="cta" id="to-signoff">Proceed to sign-off</button>
         <button class="cta ghost2" id="to-blank">Print blank checklist</button>
         <p class="hint" id="list-hint">Mark all items to continue</p>
       </div>
@@ -634,9 +659,9 @@ function signOut(){
       <div class="rep-h" id="m-secthead">Tiling work</div>
       <div class="tw">
         <table class="rep">
-          <thead><tr><th style="width:22px">#</th><th class="l">Item</th>
+          <thead><tr><th style="width:22px">#</th><th class="l" style="width:46%">Item</th>
             <th style="width:64px">Contractor</th><th style="width:52px">PMC</th>
-            <th class="l" style="width:26%">Remarks</th></tr></thead>
+            <th class="l" style="width:16%">Remarks</th></tr></thead>
           <tbody id="rep-rows"></tbody>
         </table>
       </div>
@@ -941,7 +966,7 @@ $("#items").innerHTML = ITEMS.map((q,i) => `
   <div class="qa" data-i="${i}">
     <div class="qn"><span>${String(i+1).padStart(2,"0")}</span><p>${q}</p></div>
     <div class="mrow"><span class="who">Contractor</span><span class="seg">
-      ${["Yes","No"].map(v => `<button data-r="ctr" data-v="${v}" aria-pressed="false">${v}</button>`).join("")}
+      ${["Yes","No","NA"].map(v => `<button data-r="ctr" data-v="${v}" aria-pressed="false">${v==="NA"?"N/A":v}</button>`).join("")}
     </span></div>
     <div class="mrow"><span class="who">PMC</span><span class="seg">
       ${["Yes","No","NA"].map(v => `<button data-r="pmc" data-v="${v}" aria-pressed="false">${v==="NA"?"N/A":v}</button>`).join("")}
@@ -1061,14 +1086,32 @@ function tally(){
     return (state.ctr[i] === "No" || state.pmc[i] === "No") && !(state.rems[i] || "").trim();
   }).length;
   const unctr = ITEMS.filter((_,i) => !state.ctr[i]).length;
-  $("#to-signoff").disabled = !(done === tot && unctr === 0 && missing === 0);
+  const complete = done === tot && unctr === 0 && missing === 0;
+  $("#to-signoff").classList.toggle("incomplete", !complete);
+  $("#list-hint").classList.toggle("warn", !complete);
   $("#list-hint").textContent =
     unctr ? `${unctr} item${unctr>1?"s":""} not marked by contractor`
     : done < tot ? `${tot-done} item${tot-done>1?"s":""} awaiting PMC verification`
     : missing ? `${missing} “No” mark${missing>1?"s":""} needs a reason`
     : "All items verified — ready for sign-off";
 }
-$("#to-signoff").addEventListener("click", () => go("signoff"));
+$("#to-signoff").addEventListener("click", () => {
+  tally();
+  const firstBad = [...document.querySelectorAll(".qa")].find(qa => {
+    const i = qa.dataset.i;
+    const needsReason = (state.ctr[i] === "No" || state.pmc[i] === "No") && !(state.rems[i] || "").trim();
+    return !state.ctr[i] || !state.pmc[i] || needsReason;
+  });
+  if(firstBad){
+    firstBad.scrollIntoView({ behavior:"smooth", block:"center" });
+    firstBad.classList.add("flag");
+    setTimeout(() => firstBad.classList.remove("flag"), 1800);
+    alert("This checklist isn't complete yet.\n\n" + $("#list-hint").textContent +
+      ".\n\nEvery item needs both a Contractor and a PMC mark (Yes / No / N/A), and a reason for any “No”, before you can proceed to sign-off.");
+    return;
+  }
+  go("signoff");
+});
 
 /* ═══ signatures ═══ */
 function nameField(k, src){
@@ -1166,7 +1209,7 @@ function buildReport(){
   $("#rep-rows").innerHTML = ITEMS.map((q,i) => {
     const c = state.ctr[i] || "—", p = state.pmc[i] || "—", r = state.rems[i] || "";
     return `<tr><td>${i+1}</td><td>${q}</td>
-      <td class="c ${c==="—"?"":c}">${c}</td>
+      <td class="c ${c==="—"?"":c}">${c==="NA"?"N/A":c}</td>
       <td class="c ${p==="—"?"":p}">${p==="NA"?"N/A":p}</td>
       <td>${r || "&mdash;"}</td></tr>`;
   }).join("");
@@ -1198,7 +1241,7 @@ function buildBlank(){
   $("#m-cmt").innerHTML = "";
   $("#m-secthead").textContent = state.cat[0];
   $("#rep-rows").innerHTML = ITEMS.map((q,i) =>
-    `<tr><td>${i+1}</td><td>${q}</td><td class="c">☐ Yes &nbsp; ☐ No</td>
+    `<tr><td>${i+1}</td><td>${q}</td><td class="c">☐ Y ☐ N ☐ NA</td>
      <td class="c">☐ Y ☐ N ☐ NA</td><td></td></tr>`).join("");
   $("#rep-sigs").innerHTML = ROLES.map(([k,role,org]) =>
     `<div class="sigbox"><div class="r">${role} (${org})</div>
