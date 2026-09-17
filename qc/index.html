@@ -112,9 +112,9 @@ img{ max-width:100%; }
 .fld{ margin-bottom:9px; }
 .fld label{ display:block; font-size:10px; letter-spacing:1.1px; text-transform:uppercase;
   color:var(--muted); font-weight:600; margin-bottom:2px; }
-.fld input{ width:100%; border:1.5px solid var(--line); border-radius:7px; padding:8px 10px;
+.fld input, .fld select{ width:100%; border:1.5px solid var(--line); border-radius:7px; padding:8px 10px;
   font-family:var(--sans); font-size:13.5px; background:var(--paper); color:var(--ink); }
-.fld input:focus{ outline:none; border-color:var(--teal); }
+.fld input:focus, .fld select:focus{ outline:none; border-color:var(--teal); }
 .fld input[readonly]{ background:#F0F3F6; color:var(--muted-2); }
 .two{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
 .types{ display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }
@@ -215,7 +215,16 @@ img{ max-width:100%; }
 .cta.incomplete:hover{ background:#BAC3CF; }
 .hint{ text-align:center; font-size:11.5px; color:var(--muted); margin:8px 0 0; }
 .hint.warn{ color:var(--fail); font-weight:600; }
-.qa.flag{ animation:qaflag 1.8s ease; }
+.admin-row{ display:flex; align-items:center; gap:10px; padding:10px 18px; border-bottom:1px solid var(--line-soft); }
+.admin-row .nm{ flex:1; font-size:13.5px; font-weight:600; }
+.admin-row .sub{ font-size:11.5px; color:var(--muted); font-weight:400; display:block; }
+.admin-row button{ background:var(--paper); border:1.5px solid var(--line); border-radius:6px;
+  padding:4px 10px; font-size:11.5px; font-weight:600; color:var(--muted-2); flex:none; }
+.admin-empty{ padding:16px 18px; font-size:12.5px; color:var(--muted); }
+.admin-form{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:14px; margin:14px 18px; }
+.admin-form h4{ font-size:11px; letter-spacing:1.1px; text-transform:uppercase; color:var(--teal); font-weight:700; margin:0 0 10px; }
+.admin-form .cta{ margin-top:2px; }
+.qa.flag,.fld.flag{ animation:qaflag 1.8s ease; }
 @keyframes qaflag{ 0%,100%{ background:transparent; } 15%,55%{ background:var(--fail-bg); } }
 
 /* process flow */
@@ -460,6 +469,7 @@ function signOut(){
     <button data-go="list">QC checklist</button>
     <button data-go="signoff">Sign-off</button>
     <button data-go="report">Report</button>
+    <button data-go="admin" id="nav-admin" style="display:none">Admin</button>
   </nav>
   <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
     <span id="me-chip" style="font-size:12px;color:var(--teal-pale)"></span>
@@ -542,6 +552,8 @@ function signOut(){
         <div class="ctx" id="ctx-flow"></div>
       </div>
       <div class="rule"></div>
+      <p class="ph-note"><b>Under development.</b> The construction execution-sequence mapping is still
+        being built out trade by trade — treat what's shown here as a preview, not a finished reference.</p>
       <div class="tabs">
         <button data-tab="cats" aria-selected="false">Checklists</button>
         <button data-tab="flow" aria-selected="true">Process flow</button>
@@ -577,7 +589,9 @@ function signOut(){
         </div>
         <div class="two">
           <div class="fld"><label>Drawing ref no.</label><input id="d-dwg" value="AR/FL/026"></div>
-          <div class="fld"><label>Contract / WO ref no.</label><input id="d-wo" value="PCP/WO/26-27/041"></div>
+          <div class="fld"><label>Contract / WO ref no.</label>
+            <input id="d-wo" value="PCP/WO/26-27/041" list="wo-options" autocomplete="off">
+            <datalist id="wo-options"></datalist></div>
         </div>
         <div class="two">
           <div class="fld"><label>Contractor</label><select id="d-ctr"></select></div>
@@ -587,7 +601,7 @@ function signOut(){
         <div class="fld"><label>Type of checklist</label><div class="types" id="d-types"></div></div>
         <div class="two">
           <div class="fld"><label>Description</label><input id="d-desc" value="Vitrified tiling — Block B, Level 2"></div>
-          <div class="fld"><label>Date completed</label><input id="d-done" type="date"></div>
+          <div class="fld"><label>Date completed <span style="color:var(--fail)">*</span></label><input id="d-done" type="date"></div>
         </div>
       </div>
       <div class="prog">
@@ -614,6 +628,21 @@ function signOut(){
         <button class="cta" data-go="report">Generate report</button>
         <p class="hint">Site Engineer and Project Engineer signatures are required to issue</p>
       </div>
+    </section>
+
+    <section class="screen" id="sc-admin" hidden>
+      <div class="apphead">
+        <div class="row"><button class="back" data-go="projects" aria-label="Back">&#8592;</button>
+        <div><div class="crumb">Quality Control</div><h1>Admin &middot; Master data</h1></div></div>
+      </div>
+      <div class="rule"></div>
+      <div class="tabs" id="admin-tabs">
+        <button data-atab="projects" aria-selected="true">Projects</button>
+        <button data-atab="contractors" aria-selected="false">Contractors</button>
+        <button data-atab="workorders" aria-selected="false">Work orders</button>
+        <button data-atab="employees" aria-selected="false">Employees</button>
+      </div>
+      <div class="scroll" id="admin-body"></div>
     </section>
 
   </div>
@@ -649,6 +678,7 @@ function signOut(){
         <div><dt>Contract / WO ref no.</dt><dd id="m-wo">&mdash;</dd></div>
         <div><dt>Work head</dt><dd id="m-head">&mdash;</dd></div>
         <div><dt>Date &amp; time of inspection</dt><dd id="m-date">&mdash;</dd></div>
+        <div><dt>Date completed</dt><dd id="m-done">&mdash;</dd></div>
         <div><dt>Contractor</dt><dd id="m-ctr">&mdash;</dd></div>
         <div><dt>Type of checklist</dt><dd id="m-types">&mdash;</dd></div>
         <div><dt>Status</dt><dd id="m-st">&mdash;</dd></div>
@@ -687,6 +717,8 @@ const PROJECTS = [
 ];
 const TYPES = ["Architectural","Structural","Civil works","Services & Utility","Interiors"];
 const BACKEND = "https://script.google.com/macros/s/AKfycbzX1MkEf3ANjxiLpiDGv6D5f2NMsETFU4PdHs8h-fVzRojYT0PN8GcEkFiWnZNAGeur/exec";
+/* admin-managed master data — populated from the backend once signed in; empty until then */
+let PROJECTS_FULL = [], CONTRACTORS_MASTER = [], WORKORDERS_MASTER = [], EMPLOYEES_MASTER = [];
 let DATA = null, ALLITEMS = [], HEADS = [], CATS = {}, ITEMS = [], REFPIC = {}, GUIDE = {};
 let SERVER_TIME = null;
 const SECTIONS = [
@@ -776,13 +808,14 @@ const SEQ = { "FLR-TIL":0 };
 
 
 const state = { proj:PROJECTS[1], head:["",""], cat:["",""],
-  stage:null, ctr:{}, pmc:{}, rems:{}, shots:{}, ticks:{}, sigs:{}, types:new Set(["Architectural","Interiors"]) };
+  stage:null, ctr:{}, pmc:{}, rems:{}, shots:{}, ticks:{}, sigs:{}, types:new Set(["Architectural","Interiors"]),
+  adminTab:"projects", isAdmin:false };
 const $ = s => document.querySelector(s);
 const nameOf = k => { const el = $("#n-"+k); return el ? (el.value || "").trim() : ""; };
 const svg = k => `<svg viewBox="0 0 24 24">${IC[k]}</svg>`;
 
 /* ═══ navigation ═══ */
-const SCREENS = ["signin","projects","pflow","heads","cats","flow","stage","list","signoff","report"];
+const SCREENS = ["signin","projects","pflow","heads","cats","flow","stage","list","signoff","report","admin"];
 function go(n){
   SCREENS.forEach(s => { const el = $("#sc-"+s); if(el) el.hidden = (s !== n); });
   $("#stage").hidden = (n === "report");
@@ -792,6 +825,7 @@ function go(n){
   if(n === "flow") renderFlow();
   if(n === "list") renderDetails();
   if(n === "report") buildReport();
+  if(n === "admin") renderAdmin();
   ctx(); window.scrollTo({top:0});
 }
 document.addEventListener("click", e => {
@@ -803,8 +837,22 @@ function ctx(){
   ["ctx-pflow","ctx-heads","ctx-cats","ctx-flow"].forEach(id => { const el = $("#"+id); if(el) el.innerHTML = c; });
 }
 
+function refreshContractorOptions(){
+  const active = CONTRACTORS_MASTER.filter(c => c.active).map(c => c.name);
+  const names = active.length ? active : Object.keys(CONTRACTORS);   // fall back to sample roster
+  const cur = $("#d-ctr").value;
+  $("#d-ctr").innerHTML = names.map(c => `<option>${c}</option>`).join("");
+  if(names.includes(cur)) $("#d-ctr").value = cur;
+  refreshWorkOrderOptions();
+}
+function refreshWorkOrderOptions(){
+  const ctr = $("#d-ctr").value, code = state.proj[1];
+  const matches = WORKORDERS_MASTER.filter(w => w.active &&
+    (!ctr || w.contractor === ctr) && (!code || w.project === code));
+  $("#wo-options").innerHTML = matches.map(w => `<option value="${w.wo}">`).join("");
+}
 $("#d-ctr").innerHTML = Object.keys(CONTRACTORS).map(c => `<option>${c}</option>`).join("");
-$("#d-ctr").addEventListener("change", renderSigs);
+$("#d-ctr").addEventListener("change", () => { renderSigs(); refreshWorkOrderOptions(); });
 
 /* ═══ projects ═══ */
 function renderProjects(){
@@ -1085,15 +1133,18 @@ function tally(){
     return (state.ctr[i] === "No" || state.pmc[i] === "No") && !(state.rems[i] || "").trim();
   }).length;
   const unctr = ITEMS.filter((_,i) => !state.ctr[i]).length;
-  const complete = done === tot && unctr === 0 && missing === 0;
+  const noDone = !$("#d-done").value;
+  const complete = done === tot && unctr === 0 && missing === 0 && !noDone;
   $("#to-signoff").classList.toggle("incomplete", !complete);
   $("#list-hint").classList.toggle("warn", !complete);
   $("#list-hint").textContent =
     unctr ? `${unctr} item${unctr>1?"s":""} not marked by contractor`
     : done < tot ? `${tot-done} item${tot-done>1?"s":""} awaiting PMC verification`
     : missing ? `${missing} “No” mark${missing>1?"s":""} needs a reason`
+    : noDone ? "Date completed is required"
     : "All items verified — ready for sign-off";
 }
+$("#d-done").addEventListener("change", tally);
 $("#to-signoff").addEventListener("click", () => {
   tally();
   const firstBad = [...document.querySelectorAll(".qa")].find(qa => {
@@ -1107,6 +1158,15 @@ $("#to-signoff").addEventListener("click", () => {
     setTimeout(() => firstBad.classList.remove("flag"), 1800);
     alert("This checklist isn't complete yet.\n\n" + $("#list-hint").textContent +
       ".\n\nEvery item needs both a Contractor and a PMC mark (Yes / No / N/A), and a reason for any “No”, before you can proceed to sign-off.");
+    return;
+  }
+  if(!$("#d-done").value){
+    const fld = $("#d-done");
+    fld.scrollIntoView({ behavior:"smooth", block:"center" });
+    fld.closest(".fld").classList.add("flag");
+    setTimeout(() => fld.closest(".fld").classList.remove("flag"), 1800);
+    fld.focus();
+    alert("Date completed is required before you can proceed to sign-off.");
     return;
   }
   go("signoff");
@@ -1193,7 +1253,7 @@ function buildReport(){
   set("m-proj", state.proj[0]); set("m-code", state.proj[1]);
   set("m-dwg", $("#d-dwg").value); set("m-wo", $("#d-wo").value);
   set("m-head", state.head[0]);
-  set("m-date", stampTxt(OPENED));
+  set("m-date", stampTxt(OPENED)); set("m-done", fmt($("#d-done").value));
   set("m-ctr", $("#d-ctr").value);
   set("m-types", [...state.types].join(", "));
   set("m-desc", $("#d-desc").value);
@@ -1233,7 +1293,7 @@ function buildReport(){
 function buildBlank(){
   const rule = '<span class="rul"></span>';
   $("#m-ref").textContent = state.head[1] + "-" + state.cat[1] + "-____";
-  ["m-proj","m-code","m-no","m-dwg","m-wo","m-date","m-ctr","m-types","m-st"]
+  ["m-proj","m-code","m-no","m-dwg","m-wo","m-date","m-done","m-ctr","m-types","m-st"]
     .forEach(id => $("#"+id).innerHTML = rule);
   $("#m-head").textContent = state.head[0];
   $("#m-desc").innerHTML = rule;
@@ -1296,6 +1356,27 @@ function loadBackend(){
           [p.Client, p.Location].filter(Boolean).join(" \u00b7 ")]));
         renderProjects();
       }
+      PROJECTS_FULL = (d.projects || []).map(p => ({
+        code:p["Project Code"]||"", name:p["Project Name"]||"", client:p.Client||"",
+        location:p.Location||"", status:p.Status||"Active", pm:p["Project Manager"]||"" }));
+      CONTRACTORS_MASTER = (d.contractors || []).map(c => ({
+        name:c["Contractor Name"]||"", active: String(c.Active).toLowerCase() !== "no" }));
+      WORKORDERS_MASTER = (d.workorders || []).map(w => ({
+        wo:w["WO Number"]||"", contractor:w["Contractor Name"]||"", project:w["Project Code"]||"",
+        active: String(w.Active).toLowerCase() !== "no" }));
+      EMPLOYEES_MASTER = (d.people || []).map(p => ({
+        email:String(p.Email||"").toLowerCase().trim(), name:p.Name||"",
+        role:p["Role (admin/pm/pe/se)"]||"se", active: String(p.Active).toLowerCase() !== "no",
+        designation:p.Designation||"" }));
+
+      /* admin gate \u2014 server-side checks enforce this for real; this only shows/hides the nav entry */
+      if(window.__AUTH){
+        const me = EMPLOYEES_MASTER.find(p => p.email === String(window.__AUTH.email||"").toLowerCase().trim());
+        state.isAdmin = !!(me && me.role === "admin" && me.active);
+        $("#nav-admin").style.display = state.isAdmin ? "" : "none";
+      }
+      refreshContractorOptions();
+
       state.proj = PROJECTS[0] || state.proj;
       buildNav(); ctx();
       if(box) box.hidden = true;
@@ -1309,6 +1390,198 @@ function loadBackend(){
         $("#retry-load").addEventListener("click", loadBackend); }
     });
 }
+/* ═══ admin — master data ═══
+   The server enforces the real access control on every write (see Code.gs, requireAdmin_
+   and roleFor_, driven off the People sheet). This UI only shows the screen and forms to
+   users the client believes are admins — it is a convenience, not the security boundary. */
+function adminPost(entity, data){
+  return fetch(BACKEND, { method:"POST",
+    body: JSON.stringify({ token: window.__AUTH.token, action:"adminSave", entity, data }) })
+    .then(r => r.json())
+    .then(res => { if(!res || !res.ok) throw new Error((res && res.error) || "Save failed"); return res; });
+}
+function adminEsc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+function renderAdmin(){
+  document.querySelectorAll("#admin-tabs button").forEach(b =>
+    b.setAttribute("aria-selected", String(b.dataset.atab === state.adminTab)));
+  const box = $("#admin-body");
+  if(!state.isAdmin){
+    box.innerHTML = `<p class="admin-empty"><b>Admin access only.</b> This area is restricted to
+      users with the admin role in the People sheet.</p>`;
+    return;
+  }
+  if(state.adminTab === "projects")    return renderAdminProjects(box);
+  if(state.adminTab === "contractors") return renderAdminContractors(box);
+  if(state.adminTab === "workorders")  return renderAdminWorkOrders(box);
+  if(state.adminTab === "employees")   return renderAdminEmployees(box);
+}
+$("#admin-tabs").addEventListener("click", e => {
+  const b = e.target.closest("[data-atab]"); if(!b) return;
+  state.adminTab = b.dataset.atab; renderAdmin();
+});
+
+function renderAdminProjects(box){
+  box.innerHTML =
+    (PROJECTS_FULL.length ? PROJECTS_FULL.map(p => `
+      <div class="admin-row"><div class="nm">${adminEsc(p.name)}
+          <span class="pill ${p.status==="Active"?"done":"open"}">${adminEsc(p.status)}</span>
+        <span class="sub">${adminEsc(p.code)} &middot; ${adminEsc([p.client,p.location].filter(Boolean).join(" · ")) || "—"}
+          &middot; PM: ${adminEsc(p.pm) || "—"}</span></div>
+        <button data-edit-proj="${adminEsc(p.code)}">Edit</button></div>`).join("")
+      : `<p class="admin-empty">No projects yet &mdash; add one below.</p>`) +
+    `<div class="admin-form">
+      <h4>Add / update project</h4>
+      <div class="two">
+        <div class="fld"><label>Project code *</label><input id="af-p-code"></div>
+        <div class="fld"><label>Project name *</label><input id="af-p-name"></div>
+      </div>
+      <div class="two">
+        <div class="fld"><label>Client</label><input id="af-p-client"></div>
+        <div class="fld"><label>Location</label><input id="af-p-location"></div>
+      </div>
+      <div class="two">
+        <div class="fld"><label>Project manager</label>
+          <select id="af-p-pm"><option value="">&mdash; none &mdash;</option>
+            ${EMPLOYEES_MASTER.filter(e => e.active).map(e => `<option value="${adminEsc(e.name)}">${adminEsc(e.name)}</option>`).join("")}
+          </select></div>
+        <div class="fld"><label>Status</label>
+          <select id="af-p-status"><option>Active</option><option>On hold</option><option>Completed</option></select></div>
+      </div>
+      <button class="cta" id="af-p-save" type="button">Save project</button>
+    </div>`;
+  $("#af-p-save").addEventListener("click", () => {
+    const code = $("#af-p-code").value.trim(), name = $("#af-p-name").value.trim();
+    if(!code || !name) return alert("Project code and name are required.");
+    $("#af-p-save").disabled = true;
+    adminPost("project", { code, name, client:$("#af-p-client").value.trim(),
+      location:$("#af-p-location").value.trim(), pm:$("#af-p-pm").value, status:$("#af-p-status").value })
+      .then(() => loadBackend()).then(() => renderAdmin())
+      .catch(err => { alert("Could not save: " + (err.message || err)); $("#af-p-save").disabled = false; });
+  });
+  box.querySelectorAll("[data-edit-proj]").forEach(btn => btn.addEventListener("click", () => {
+    const p = PROJECTS_FULL.find(x => x.code === btn.dataset.editProj); if(!p) return;
+    $("#af-p-code").value = p.code; $("#af-p-name").value = p.name;
+    $("#af-p-client").value = p.client; $("#af-p-location").value = p.location;
+    $("#af-p-pm").value = p.pm; $("#af-p-status").value = p.status || "Active";
+    $("#af-p-code").scrollIntoView({ behavior:"smooth", block:"center" });
+  }));
+}
+
+function renderAdminContractors(box){
+  box.innerHTML =
+    (CONTRACTORS_MASTER.length ? CONTRACTORS_MASTER.map(c => `
+      <div class="admin-row"><div class="nm">${adminEsc(c.name)}
+        <span class="pill ${c.active?"done":"open"}">${c.active?"Active":"Inactive"}</span></div>
+        <button data-toggle-ctr="${adminEsc(c.name)}" data-active="${c.active}">${c.active?"Deactivate":"Reactivate"}</button></div>`).join("")
+      : `<p class="admin-empty">No contractors yet &mdash; add one below.</p>`) +
+    `<div class="admin-form">
+      <h4>Add contractor</h4>
+      <div class="fld"><label>Contractor name *</label><input id="af-c-name"></div>
+      <button class="cta" id="af-c-save" type="button">Save contractor</button>
+    </div>`;
+  $("#af-c-save").addEventListener("click", () => {
+    const name = $("#af-c-name").value.trim();
+    if(!name) return alert("Contractor name is required.");
+    $("#af-c-save").disabled = true;
+    adminPost("contractor", { name, active:true })
+      .then(() => loadBackend()).then(() => renderAdmin())
+      .catch(err => { alert("Could not save: " + (err.message || err)); $("#af-c-save").disabled = false; });
+  });
+  box.querySelectorAll("[data-toggle-ctr]").forEach(btn => btn.addEventListener("click", () => {
+    const name = btn.dataset.toggleCtr, active = btn.dataset.active === "true";
+    btn.disabled = true;
+    adminPost("contractor", { name, active: !active })
+      .then(() => loadBackend()).then(() => renderAdmin())
+      .catch(err => { alert("Could not update: " + (err.message || err)); btn.disabled = false; });
+  }));
+}
+
+function renderAdminWorkOrders(box){
+  box.innerHTML =
+    (WORKORDERS_MASTER.length ? WORKORDERS_MASTER.map(w => `
+      <div class="admin-row"><div class="nm">${adminEsc(w.wo)}
+        <span class="pill ${w.active?"done":"open"}">${w.active?"Active":"Inactive"}</span>
+        <span class="sub">${adminEsc(w.contractor) || "—"} &middot; ${adminEsc(w.project) || "—"}</span></div>
+        <button data-toggle-wo="${adminEsc(w.wo)}" data-active="${w.active}">${w.active?"Close":"Reopen"}</button></div>`).join("")
+      : `<p class="admin-empty">No work orders yet &mdash; add one below.</p>`) +
+    `<div class="admin-form">
+      <h4>Add / update work order</h4>
+      <div class="two">
+        <div class="fld"><label>WO number *</label><input id="af-w-no"></div>
+        <div class="fld"><label>Contractor</label>
+          <select id="af-w-ctr"><option value="">&mdash; none &mdash;</option>
+            ${CONTRACTORS_MASTER.filter(c => c.active).map(c => `<option value="${adminEsc(c.name)}">${adminEsc(c.name)}</option>`).join("")}
+          </select></div>
+      </div>
+      <div class="fld"><label>Project</label>
+        <select id="af-w-proj"><option value="">&mdash; none &mdash;</option>
+          ${PROJECTS_FULL.map(p => `<option value="${adminEsc(p.code)}">${adminEsc(p.name)} (${adminEsc(p.code)})</option>`).join("")}
+        </select></div>
+      <button class="cta" id="af-w-save" type="button">Save work order</button>
+    </div>`;
+  $("#af-w-save").addEventListener("click", () => {
+    const wo = $("#af-w-no").value.trim();
+    if(!wo) return alert("WO number is required.");
+    $("#af-w-save").disabled = true;
+    adminPost("workorder", { wo, contractor:$("#af-w-ctr").value, project:$("#af-w-proj").value, active:true })
+      .then(() => loadBackend()).then(() => renderAdmin())
+      .catch(err => { alert("Could not save: " + (err.message || err)); $("#af-w-save").disabled = false; });
+  });
+  box.querySelectorAll("[data-toggle-wo]").forEach(btn => btn.addEventListener("click", () => {
+    const wo = btn.dataset.toggleWo, active = btn.dataset.active === "true";
+    btn.disabled = true;
+    adminPost("workorder", { wo, active: !active })
+      .then(() => loadBackend()).then(() => renderAdmin())
+      .catch(err => { alert("Could not update: " + (err.message || err)); btn.disabled = false; });
+  }));
+}
+
+function renderAdminEmployees(box){
+  const ROLE_LABEL = { admin:"Admin", pm:"Project Manager", pe:"Project Engineer", se:"Site Engineer" };
+  box.innerHTML =
+    (EMPLOYEES_MASTER.length ? EMPLOYEES_MASTER.map(p => `
+      <div class="admin-row"><div class="nm">${adminEsc(p.name) || adminEsc(p.email)}
+        <span class="pill ${p.active?"done":"open"}">${p.active?"Active":"Inactive"}</span>
+        <span class="sub">${adminEsc(p.email)} &middot; ${adminEsc(ROLE_LABEL[p.role] || p.role)}${p.designation ? " &middot; " + adminEsc(p.designation) : ""}</span></div>
+        <button data-toggle-emp="${adminEsc(p.email)}" data-active="${p.active}">${p.active?"Deactivate":"Reactivate"}</button></div>`).join("")
+      : `<p class="admin-empty">No employees yet &mdash; add one below.</p>`) +
+    `<div class="admin-form">
+      <h4>Add / update employee</h4>
+      <div class="two">
+        <div class="fld"><label>Email *</label><input id="af-e-email" placeholder="name@projemconsulting.in"></div>
+        <div class="fld"><label>Name *</label><input id="af-e-name"></div>
+      </div>
+      <div class="two">
+        <div class="fld"><label>Designation</label><input id="af-e-desig" placeholder="e.g. Site Engineer"></div>
+        <div class="fld"><label>Access role</label>
+          <select id="af-e-role"><option value="se">Site Engineer</option><option value="pe">Project Engineer</option>
+            <option value="pm">Project Manager</option><option value="admin">Admin</option></select></div>
+      </div>
+      <button class="cta" id="af-e-save" type="button">Save employee</button>
+      <p class="hint">Access role controls what the app lets them sign off &mdash; separate from the job-title
+        designation above.</p>
+    </div>`;
+  $("#af-e-save").addEventListener("click", () => {
+    const email = $("#af-e-email").value.trim().toLowerCase(), name = $("#af-e-name").value.trim();
+    if(!email || !name) return alert("Email and name are required.");
+    $("#af-e-save").disabled = true;
+    adminPost("employee", { email, name, role:$("#af-e-role").value,
+      designation:$("#af-e-desig").value.trim(), active:true })
+      .then(() => loadBackend()).then(() => renderAdmin())
+      .catch(err => { alert("Could not save: " + (err.message || err)); $("#af-e-save").disabled = false; });
+  });
+  box.querySelectorAll("[data-toggle-emp]").forEach(btn => btn.addEventListener("click", () => {
+    const email = btn.dataset.toggleEmp, active = btn.dataset.active === "true";
+    if(active && email === String((window.__AUTH && window.__AUTH.email) || "").toLowerCase())
+      return alert("You can't deactivate your own account.");
+    btn.disabled = true;
+    adminPost("employee", { email, active: !active })
+      .then(() => loadBackend()).then(() => renderAdmin())
+      .catch(err => { alert("Could not update: " + (err.message || err)); btn.disabled = false; });
+  }));
+}
+
 if(window.__AUTH){ go("projects"); loadBackend(); }
 </script>
 
