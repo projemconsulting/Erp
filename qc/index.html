@@ -473,6 +473,7 @@ function signOut(){
   </nav>
   <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
     <span id="me-chip" style="font-size:12px;color:var(--teal-pale)"></span>
+    <span id="role-chip" class="pill" style="display:none"></span>
     <button id="btn-signout" style="background:rgba(255,255,255,.12);border:0;color:#fff;
       border-radius:6px;padding:5px 10px;font-size:12px;font-weight:600">Sign out</button>
   </span>
@@ -634,6 +635,7 @@ function signOut(){
       <div class="apphead">
         <div class="row"><button class="back" data-go="projects" aria-label="Back">&#8592;</button>
         <div><div class="crumb">Quality Control</div><h1>Admin &middot; Master data</h1></div></div>
+        <div class="ctx" id="admin-role-note"></div>
       </div>
       <div class="rule"></div>
       <div class="tabs" id="admin-tabs">
@@ -1382,6 +1384,15 @@ function loadBackend(){
         state.isSuperAdmin = state.isAdmin && me.email === SUPER_ADMIN_EMAIL;
         $("#nav-admin").style.display = state.isAdmin ? "" : "none";
         $("#atab-employees").style.display = state.isSuperAdmin ? "" : "none";
+        /* visible role badge, top bar — this is the "am I super admin?" indicator */
+        const roleChip = $("#role-chip");
+        if(state.isSuperAdmin){
+          roleChip.textContent = "Super Admin"; roleChip.className = "pill done"; roleChip.style.display = "";
+        } else if(state.isAdmin){
+          roleChip.textContent = "Admin"; roleChip.className = "pill part"; roleChip.style.display = "";
+        } else {
+          roleChip.style.display = "none";
+        }
       }
       refreshContractorOptions();
 
@@ -1414,6 +1425,10 @@ function renderAdmin(){
   if(state.adminTab === "employees" && !state.isSuperAdmin) state.adminTab = "projects";
   document.querySelectorAll("#admin-tabs button").forEach(b =>
     b.setAttribute("aria-selected", String(b.dataset.atab === state.adminTab)));
+  const note = $("#admin-role-note");
+  if(note) note.innerHTML = state.isSuperAdmin
+    ? "Signed in as <b>Super Admin</b> — full access, including Employees &amp; roles"
+    : (state.isAdmin ? "Signed in as <b>Admin</b> — Projects, Contractors &amp; Work orders only" : "");
   const box = $("#admin-body");
   if(!state.isAdmin){
     box.innerHTML = `<p class="admin-empty"><b>Admin access only.</b> This area is restricted to
