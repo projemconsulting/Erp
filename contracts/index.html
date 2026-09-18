@@ -275,7 +275,7 @@ const AUTH_CONFIGURED = MSAL_CONFIG.clientId !== 'REPLACE_WITH_CLIENT_ID' && MSA
 let msalInstance = null;
 let CURRENT_USER = null;
 
-function initMsal(){
+async function initMsal(){
   if(!window.msal) return null;
   msalInstance = new msal.PublicClientApplication({
     auth:{
@@ -285,6 +285,7 @@ function initMsal(){
     },
     cache:{ cacheLocation:'sessionStorage' }
   });
+  await msalInstance.initialize();
   return msalInstance;
 }
 
@@ -352,7 +353,7 @@ async function boot(){
     gate.style.display='flex'; app.style.display='none';
     return;
   }
-  if(!msalInstance) initMsal();
+  if(!msalInstance) await initMsal();
   const signedIn = trySilentSignIn();
   if(!signedIn){
     gate.innerHTML = loginHtml();
