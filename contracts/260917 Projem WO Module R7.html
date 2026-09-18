@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projem ERP — Work Order Module</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/msal-browser/3.17.0/msal-browser.min.js"></script>
+<style>
+  :root{
+    --navy:#121e3d; --navy-2:#2E3449;
+    --teal:#25899a; --teal-2:#2FAFC3;
+    --paper:#F6F4EF; --paper-2:#EFEBE2;
+    --ink:#1b2333; --ink-soft:#5b6478;
+    --line:#dcd7cb; --line-soft:#e8e4d9;
+    --ok:#2f8f5b; --warn:#b8862c; --err:#b3432e;
+    --white:#ffffff;
+    --radius:10px;
+    --font-head:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+    --font-body:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    font-size:15px;
+    line-height:1.5;
+  }
+  h1,h2,h3,h4{font-family:var(--font-head);color:var(--navy);margin:0 0 .4em;font-weight:600}
+  .mono{font-family:var(--font-mono)}
+  a{color:var(--teal)}
+
+  /* App shell */
+  #app{display:flex;min-height:100vh}
+  .rail{
+    width:230px;flex:none;background:var(--navy);color:#dfe4f0;
+    padding:22px 18px;display:flex;flex-direction:column;gap:26px;
+  }
+  .rail .brand{display:flex;align-items:center;gap:10px}
+  .rail .brand-mark{
+    width:30px;height:30px;border-radius:7px;
+    background:linear-gradient(135deg,var(--teal-2),var(--teal));
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-head);font-weight:700;color:var(--navy);font-size:14px;
+  }
+  .rail .brand-name{font-family:var(--font-head);font-size:15px;font-weight:600;color:#fff}
+  .rail .brand-sub{font-size:10.5px;color:#93a0c2;margin-top:1px;letter-spacing:.02em}
+  .rail nav{display:flex;flex-direction:column;gap:3px;margin-top:4px}
+  .rail nav button{
+    all:unset;cursor:pointer;padding:9px 10px;border-radius:8px;font-size:13.5px;
+    color:#c3cbe0;display:flex;align-items:center;gap:9px;
+  }
+  .rail nav button:hover{background:#1a2748;color:#fff}
+  .rail nav button.active{background:var(--teal);color:#fff}
+  .rail .crumbs{margin-top:auto;font-size:11.5px;color:#7c88a8;line-height:1.5}
+  .rail .crumbs b{color:#c3cbe0}
+
+  main{flex:1;min-width:0;padding:30px 40px 60px;max-width:1180px}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;gap:20px}
+  .top p.lede{color:var(--ink-soft);margin:.15em 0 0;font-size:13.5px;max-width:60ch}
+
+  .btn{
+    all:unset;cursor:pointer;font-family:var(--font-body);font-size:13.5px;font-weight:500;
+    padding:9px 16px;border-radius:8px;display:inline-flex;align-items:center;gap:7px;
+  }
+  .btn-primary{background:var(--teal);color:#fff}
+  .btn-primary:hover{background:#1f7686}
+  .btn-ghost{background:transparent;color:var(--navy);border:1px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--teal);color:var(--teal)}
+  .btn-quiet{color:var(--ink-soft);font-size:13px}
+  .btn-quiet:hover{color:var(--navy)}
+  .btn[disabled]{opacity:.4;cursor:not-allowed}
+
+  /* Cards / grids */
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr 1fr}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .card{
+    background:var(--white);border:1px solid var(--line-soft);border-radius:var(--radius);
+    padding:18px 20px;
+  }
+  .proj-card{
+    background:var(--white);border:1px solid var(--line-soft);border-radius:var(--radius);
+    padding:18px 18px;cursor:pointer;transition:border-color .15s, transform .1s;
+  }
+  .proj-card:hover{border-color:var(--teal-2)}
+  .proj-card .pcode{font-family:var(--font-mono);font-size:11.5px;color:var(--teal);letter-spacing:.02em}
+  .proj-card h3{margin:.25em 0 .2em;font-size:16.5px}
+  .proj-card .loc{font-size:12.5px;color:var(--ink-soft)}
+  .proj-card .stat{margin-top:12px;display:flex;gap:16px;font-size:12px;color:var(--ink-soft)}
+  .proj-card .stat b{color:var(--navy);font-family:var(--font-mono);font-weight:500}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{
+    text-align:left;font-size:11px;text-transform:none;color:var(--ink-soft);
+    font-weight:500;padding:9px 12px;border-bottom:1px solid var(--line);
+  }
+  td{padding:11px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  tr:hover td{background:#fbfaf7}
+  .wo-no{font-family:var(--font-mono);font-size:12.5px;color:var(--navy)}
+  .pill{
+    display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:500;
+  }
+  .pill-draft{background:#eee9dd;color:#7a6a3e}
+  .pill-pending{background:#fbe9d3;color:var(--warn)}
+  .pill-approved{background:#dcefe3;color:var(--ok)}
+
+  /* Type picker */
+  .type-card{
+    background:var(--white);border:1.5px solid var(--line-soft);border-radius:var(--radius);
+    padding:20px;cursor:pointer;text-align:left;
+  }
+  .type-card:hover{border-color:var(--teal-2)}
+  .type-card.sel{border-color:var(--teal);background:#f4fbfc}
+  .type-card .tag{
+    font-family:var(--font-mono);font-size:11px;color:var(--teal);background:#e3f2f3;
+    padding:2px 7px;border-radius:5px;display:inline-block;margin-bottom:8px;
+  }
+  .type-card h4{margin:0 0 4px;font-size:15px}
+  .type-card p{margin:0;font-size:12.5px;color:var(--ink-soft)}
+
+  /* Forms */
+  label{display:block;font-size:12px;color:var(--ink-soft);margin:0 0 5px}
+  .field{margin-bottom:14px}
+  input[type=text],input[type=number],input[type=date],select,textarea{
+    width:100%;font-family:var(--font-body);font-size:13.5px;color:var(--ink);
+    padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:#fff;
+  }
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--teal-2);outline-offset:1px;border-color:var(--teal-2)}
+  textarea{resize:vertical;min-height:56px}
+  .radio-row{display:flex;gap:8px;flex-wrap:wrap}
+  .radio-row label{
+    display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:7px;
+    padding:8px 12px;font-size:13px;color:var(--ink);cursor:pointer;margin:0;
+  }
+  .radio-row input{margin:0}
+  fieldset{border:none;padding:0;margin:0 0 18px}
+  fieldset legend{font-family:var(--font-head);font-weight:600;color:var(--navy);font-size:14px;padding:0 0 8px;width:100%;border-bottom:1px solid var(--line-soft);margin-bottom:12px}
+
+  .checklist-item{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px}
+  .checklist-item input{margin-top:3px}
+  .checklist-item.final{color:var(--ink-soft)}
+  .checklist-item .fbadge{font-size:10px;background:var(--paper-2);color:var(--ink-soft);padding:1px 6px;border-radius:5px;margin-left:6px}
+
+  .wizard-steps{display:flex;gap:6px;margin-bottom:24px}
+  .wizard-steps span{
+    flex:1;height:4px;border-radius:3px;background:var(--line-soft);
+  }
+  .wizard-steps span.done{background:var(--teal)}
+  .step-label{font-size:12px;color:var(--ink-soft);margin-bottom:6px;font-family:var(--font-mono)}
+
+  .wizard-actions{display:flex;justify-content:space-between;margin-top:26px;padding-top:18px;border-top:1px solid var(--line-soft)}
+
+  /* Document preview */
+  #docPreview{
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    padding:48px 52px;max-width:850px;margin:0 auto;font-size:13px;line-height:1.6;
+  }
+  #docPreview .dochead{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--navy);padding-bottom:14px;margin-bottom:18px}
+  #docPreview .dochead .co{font-family:var(--font-head);font-weight:700;color:var(--navy);font-size:17px}
+  #docPreview .dochead .addr{font-size:11.5px;color:var(--ink-soft);margin-top:4px;line-height:1.5}
+  #docPreview .doctitle{text-align:center;font-family:var(--font-head);font-weight:700;font-size:16px;letter-spacing:.04em;color:var(--navy);margin:6px 0 20px}
+  #docPreview .kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+  #docPreview .kv-grid .block h5{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--teal);margin:0 0 6px}
+  #docPreview .kv-grid .block div{font-size:12.5px;margin-bottom:2px}
+  #docPreview .amt{background:var(--paper);border:1px solid var(--line-soft);border-radius:8px;padding:12px 16px;margin:16px 0;font-size:12.5px}
+  #docPreview .amt .grand{font-family:var(--font-mono);font-weight:600;color:var(--navy);font-size:14px}
+  #docPreview h3.sec{font-family:var(--font-head);font-size:13px;color:var(--navy);border-bottom:1px solid var(--line);padding-bottom:5px;margin:22px 0 10px}
+  #docPreview ol.clauses{padding-left:20px;margin:0}
+  #docPreview ol.clauses li{margin-bottom:10px}
+  #docPreview ol.clauses li b{color:var(--navy)}
+  #docPreview table.rates{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
+  #docPreview table.rates th,table.rates td{border:1px solid var(--line);padding:5px 8px;text-align:left}
+  #docPreview .penalty-table{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
+  #docPreview .penalty-table th,.penalty-table td{border:1px solid var(--line);padding:5px 8px}
+  #docPreview .sig{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:34px}
+  #docPreview .sig div{border-top:1px solid var(--ink);padding-top:6px;font-size:11.5px;color:var(--ink-soft)}
+
+  .note{
+    background:#fdf6e8;border:1px solid #eddcae;color:#7a5f1c;border-radius:8px;
+    padding:10px 14px;font-size:12.5px;margin-bottom:18px;
+  }
+  .empty{color:var(--ink-soft);font-size:13.5px;padding:30px 0;text-align:center}
+
+  @media print{
+    .rail,.top .btn,.wizard-actions,.wizard-steps,.step-label,.no-print{display:none !important}
+    main{padding:0;max-width:none}
+    #docPreview{border:none;padding:0;max-width:none}
+    body{background:#fff}
+  }
+
+  @media (max-width:760px){
+    #app{flex-direction:column}
+    .rail{
+      width:auto;flex-direction:row;align-items:center;padding:12px 16px;gap:14px;
+      overflow-x:auto;
+    }
+    .rail .crumbs{display:none}
+    .rail nav{flex-direction:row;margin-top:0}
+    .rail nav button{white-space:nowrap;padding:7px 10px;font-size:12.5px}
+    main{padding:18px 16px 50px}
+    .top{flex-direction:column;gap:12px}
+    .top .btn{align-self:flex-start}
+    .grid.g2,.grid.g3,.grid.g4{grid-template-columns:1fr}
+    #docPreview{padding:26px 18px}
+    #docPreview .kv-grid{grid-template-columns:1fr}
+    #docPreview .sig{grid-template-columns:1fr;gap:20px}
+    table{font-size:12.5px}
+    th,td{padding:8px 6px}
+    .wizard-actions{flex-direction:column-reverse;gap:10px}
+    .wizard-actions .btn{width:100%;justify-content:center}
+    .radio-row{flex-direction:column}
+    .radio-row label{width:100%}
+  }
+
+  #loginGate{
+    min-height:100vh;display:none;align-items:center;justify-content:center;
+    background:var(--navy);padding:20px;
+  }
+  .login-card{
+    background:var(--white);border-radius:14px;padding:36px 34px;max-width:380px;width:100%;
+    text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.25);
+  }
+  .login-card h2{font-size:18px;margin-bottom:8px}
+  .login-card p{font-size:13px;color:var(--ink-soft);margin:0 0 6px}
+  .login-card code{font-family:var(--font-mono);font-size:11.5px;background:var(--paper);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<div id="loginGate"></div>
+<div id="app" style="display:none">
+  <aside class="rail">
+    <div class="brand">
+      <div class="brand-mark">PC</div>
+      <div>
+        <div class="brand-name">Projem ERP</div>
+        <div class="brand-sub">Work Order Module</div>
+      </div>
+    </div>
+    <div id="userChip" style="font-size:11.5px;color:#93a0c2"></div>
+    <nav>
+      <button data-screen="projects" class="active">Projects</button>
+      <button data-screen="register" id="navRegister" disabled>Work Orders</button>
+    </nav>
+    <div class="crumbs" id="crumbs"></div>
+    <button class="btn-quiet" id="signOutBtn" style="text-align:left;padding:0;display:none">Sign out</button>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<script>
+/* ============================= DATA LAYER ============================= */
+const STORE_KEY = 'pcp_wo_module_v1';
+
+/* ============================= AUTH (Microsoft Entra ID) ============================= */
+// SETUP REQUIRED — this module isn't wired to a real tenant yet. Two options:
+//  1) Reuse the QC Checklist app's Entra registration: add this page's hosted URL as a
+//     new Redirect URI on that app, then paste its Application (client) ID and
+//     Directory (tenant) ID below.
+//  2) Register a new single-tenant SPA app in Entra ID and paste its IDs below.
+// Until this is done, the login screen offers a "continue without sign-in" option so
+// the rest of the module can still be tested.
+const MSAL_CONFIG = {
+  clientId: 'abfc27f9-e479-4cd4-84b0-9437c0f9ec11',
+  tenantId: 'f1340138-9dc7-4c57-84f2-30c28764acec'
+};
+const AUTH_CONFIGURED = MSAL_CONFIG.clientId !== 'REPLACE_WITH_CLIENT_ID' && MSAL_CONFIG.tenantId !== 'REPLACE_WITH_TENANT_ID';
+
+let msalInstance = null;
+let CURRENT_USER = null;
+
+function initMsal(){
+  if(!window.msal) return null;
+  msalInstance = new msal.PublicClientApplication({
+    auth:{
+      clientId: MSAL_CONFIG.clientId,
+      authority: `https://login.microsoftonline.com/${MSAL_CONFIG.tenantId}`,
+      redirectUri: window.location.origin + window.location.pathname
+    },
+    cache:{ cacheLocation:'sessionStorage' }
+  });
+  return msalInstance;
+}
+
+function trySilentSignIn(){
+  if(!msalInstance) return false;
+  const accounts = msalInstance.getAllAccounts();
+  if(accounts.length){ CURRENT_USER = accounts[0]; return true; }
+  return false;
+}
+
+async function signIn(){
+  if(!msalInstance) return;
+  try{
+    const res = await msalInstance.loginPopup({ scopes:['User.Read'] });
+    CURRENT_USER = res.account;
+    boot();
+  }catch(e){
+    alert('Sign-in failed: '+ (e.errorMessage||e.message||e));
+  }
+}
+function signOut(){
+  if(!msalInstance || !CURRENT_USER) return;
+  msalInstance.logoutPopup({ account: CURRENT_USER }).finally(()=>{
+    CURRENT_USER = null;
+    boot();
+  });
+}
+
+function loginHtml(){
+  return `<div class="login-card">
+    <div class="brand-mark" style="width:44px;height:44px;font-size:18px;margin:0 auto 14px">PC</div>
+    <h2>Projem ERP — Work Order Module</h2>
+    <p>Sign in with your @projemconsulting.in account to continue.</p>
+    <button class="btn btn-primary" id="signInBtn" style="width:100%;justify-content:center;margin-top:14px">Sign in with Microsoft</button>
+  </div>`;
+}
+function loginNotConfiguredHtml(){
+  return `<div class="login-card">
+    <h2>Sign-in not configured yet</h2>
+    <p>This module needs an Entra ID app registration before sign-in works. Reuse the QC Checklist app's registration (add this page's hosted URL as a new Redirect URI) or create a new one, then paste the Client ID and Tenant ID into <code>MSAL_CONFIG</code> near the top of the script.</p>
+    <button class="btn btn-ghost" id="skipAuthBtn" style="width:100%;justify-content:center;margin-top:14px">Continue without sign-in (testing)</button>
+  </div>`;
+}
+function bindGateEvents(){
+  const s = document.getElementById('signInBtn'); if(s) s.onclick = signIn;
+  const skip = document.getElementById('skipAuthBtn'); if(skip) skip.onclick = async ()=>{
+    document.getElementById('loginGate').style.display='none';
+    document.getElementById('app').style.display='flex';
+    await pullFromBackend();
+    render();
+  };
+}
+
+async function boot(){
+  const gate = document.getElementById('loginGate');
+  const app = document.getElementById('app');
+  if(!AUTH_CONFIGURED){
+    gate.innerHTML = loginNotConfiguredHtml();
+    gate.style.display='flex'; app.style.display='none';
+    bindGateEvents();
+    return;
+  }
+  if(!window.msal){
+    gate.innerHTML = `<div class="login-card"><h2>Sign-in library didn't load</h2><p>The MSAL script may be blocked. Check your connection and reload.</p></div>`;
+    gate.style.display='flex'; app.style.display='none';
+    return;
+  }
+  if(!msalInstance) initMsal();
+  const signedIn = trySilentSignIn();
+  if(!signedIn){
+    gate.innerHTML = loginHtml();
+    gate.style.display='flex'; app.style.display='none';
+    bindGateEvents();
+    return;
+  }
+  gate.style.display='none'; app.style.display='flex';
+  const chip = document.getElementById('userChip');
+  const so = document.getElementById('signOutBtn');
+  if(chip) chip.textContent = CURRENT_USER.username || CURRENT_USER.name || '';
+  if(so){ so.style.display='block'; so.onclick = signOut; }
+  await pullFromBackend();
+  render();
+}
+
+function loadStore(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return {
+    projects:[
+      {code:'PM RS 25 280', name:'Madhavalayam', location:'Thondayad, Calicut', workHeads:['ELE','CIV','PLB']},
+      {code:'PM IS 25 284', name:'Lovr Westfort Hospital', location:'Thrissur', workHeads:['ELE','HVC','CIV']},
+      {code:'PM HC 26 041', name:'Hilite Cyber Tower', location:'Kozhikode', workHeads:['MEP','ELE','ELV']}
+    ],
+    contractors:[
+      {name:'M/s Techno Craft', address:'Near Ashoka Hospital, South Bazar, Civil Station PO, Kannur - 670002', contact:'8606606999', pan:'', gst:''},
+      {name:'M/s Silverline Electricals', address:'Mavoor Road, Kozhikode - 673004', contact:'9847012345', pan:'', gst:''},
+      {name:'M/s Kairali Builders', address:'Eranhipalam, Kozhikode - 673006', contact:'9744098765', pan:'', gst:''}
+    ],
+    workOrders:[]
+  };
+}
+function saveStore(){ localStorage.setItem(STORE_KEY, JSON.stringify(DB)); }
+let DB = loadStore();
+
+/* ============================= BACKEND SYNC (Google Sheets via Apps Script) ============================= */
+// SETUP REQUIRED — paste the Code.gs backend into a Google Sheet's Apps Script editor,
+// run setup() once, deploy as a Web App (Execute as: Me, Access: Anyone in your
+// organization), then paste the deployment URL below.
+const API_URL = 'https://script.google.com/macros/s/AKfycbzyxOmIrET604c5tR5Sh36427GusK4iFvhMHZibuMsZPOeBqI7cMZZfCjsaDCVbnnro/exec';
+const BACKEND_CONFIGURED = API_URL.indexOf('REPLACE_WITH') !== 0;
+
+async function pullFromBackend(){
+  if(!BACKEND_CONFIGURED) return false;
+  try{
+    const res = await fetch(API_URL+'?action=all');
+    const data = await res.json();
+    if(data.projects) DB.projects = data.projects;
+    if(data.contractors) DB.contractors = data.contractors;
+    if(data.workOrders) DB.workOrders = data.workOrders;
+    saveStore(); // keep a local cache for instant reloads / offline viewing
+    return true;
+  }catch(e){
+    console.warn('Backend pull failed, using local cache instead:', e);
+    return false;
+  }
+}
+
+async function pushWO(wo){
+  if(!BACKEND_CONFIGURED) return;
+  try{
+    await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids a CORS preflight against Apps Script
+      body: JSON.stringify({action:'saveWO', wo})
+    });
+  }catch(e){
+    console.warn('Backend push failed — change is saved locally but not yet synced:', e);
+  }
+}
+
+/* ============================= WO TYPES ============================= */
+const WO_TYPES = {
+  LL:{code:'LL', label:'Lumpsum Labour', short:'Lumpsum, labour only', material:false, variable:false},
+  LM:{code:'LM', label:'Lumpsum Labour + Material', short:'Lumpsum, labour and material', material:true, variable:false},
+  VL:{code:'VL', label:'Variable-Qty Labour', short:'Item-rate, labour only', material:false, variable:true},
+  VM:{code:'VM', label:'Variable-Qty Labour + Material', short:'Item-rate, labour and material', material:true, variable:true}
+};
+
+const BILL_DOC_OPTIONS = [
+  'Bill abstract sheet (BOQ format, previous/present/cumulative qty & amount)',
+  'Tax invoice with GSTN/PAN details',
+  'Hold Release Annexure',
+  'Debit / Credit Notes (if any)',
+  'Mobilisation recovery details',
+  'Recovery details — electricity/material credit note',
+  'Approved Work Inspection Report',
+  'Quality checklist',
+  'Approved Material Inspection Report',
+  'Approved Material Test Report',
+  'Hold amount for bad workmanship (NCR)',
+  'Markup drawings',
+  'Reconciliation of owner-supplied material'
+];
+const BILL_DOC_FINAL_ONLY = [
+  'Virtual Completion Certificate (Final Bill)',
+  'Full and Final Settlement Document (Final Bill)',
+  'No Claim Certificate (Final Bill)',
+  'Approved as-built drawing (Final Bill)',
+  'Technical data sheet / O&M manual (Final Bill)',
+  'Original Warranty (Final Bill)'
+];
+
+const PRE_ISSUE_CHECKLIST = [
+  {sec:'1. Procurement Review', items:[
+    'Minimum 3 bids obtained from qualified, pre-approved subcontractors',
+    'Bids documented and attached',
+    'Bids compared on price, scope, schedule, quality and terms',
+    'Selection justified as best overall value',
+    'Bid validity confirmed (current rates, no expired pricing)',
+    'No hidden costs, exclusions, or unclear scope items'
+  ]},
+  {sec:'2. Pricing & Historical Review', items:[
+    'Work order price matches selected bid',
+    'Quantities, labour hours, rates and totals verified',
+    'Compared to prior similar work orders',
+    'Variances greater than 10–15% reviewed and explained',
+    'Pricing aligns with project budget, allowances and current market rates'
+  ]},
+  {sec:'3. Scope & Schedule Verification', items:[
+    'Scope aligns with project specifications and drawings',
+    'Work clearly defined (no gaps or overlaps)',
+    'Schedule dates realistic and coordinated with master schedule',
+    'Dependencies and milestones identified',
+    'Subcontractor credentials verified (licences, insurance, bonding)'
+  ]},
+  {sec:'4. Compliance & Risk Review', items:[
+    'Work order linked to main subcontract agreement',
+    'Payment terms, milestones and retention clearly defined',
+    'Safety plans reviewed and accepted',
+    'Required permits identified/secured',
+    'Regulatory compliance confirmed',
+    'All prior approvals obtained (Engineer, Owner etc.)'
+  ]},
+  {sec:'5. Final Review', items:[
+    'Issues identified and returned for revision (if applicable)',
+    'Competitive pricing confirmed',
+    'Risk level acceptable'
+  ]}
+];
+
+/* ============================= CLAUSE ENGINE ============================= */
+// Each clause: id, title, applies(type) -> bool, render(a, type) -> html string
+function fmtPct(v){ return (v===undefined||v==='') ? '____' : v; }
+function fmtVal(v, fallback){ return (v===undefined || v==='' || v===null) ? (fallback||'____') : v; }
+
+const CLAUSES = [
+  {n:1, title:'Scope of Works', render:(a)=>`The Contractor shall execute <b>${fmtVal(a.scope)}</b> with all resources, labour${WO_TYPES[a.type].material?', and materials':''}, and equipment necessary, complete within the time stated in this Work Order.`},
+  {n:2, title:'Mode of Contract', render:(a)=> WO_TYPES[a.type].variable
+      ? `This is an item-rate contract. Quantities stated in the Rate Schedule are tentative and may vary; only the actually measured and accepted quantity shall be paid.`
+      : `This is a lumpsum contract for the scope and drawings referenced herein. The quoted price of <b>${fmtVal(a.lumpsumPrice)}</b> is fixed for the defined scope.`},
+  {n:3, title:'Subcontracting', render:()=>`The Contractor shall not assign or sublet this Work Order, or any interest in it, without the Owner's prior written consent.`},
+  {n:4, title:'Price Basis', render:()=>`Rates quoted are inclusive of transportation, loading, unloading and storage at site, and exclusive of taxes, duties and statutory levies unless stated otherwise, and shall remain firm till completion of work.`},
+  {n:5, title:'Rates', render:()=>`Rates are firm for the Contract duration, including any approved extension, and shall not vary for cost of material, labour or other conditions except as provided under Clause 20 (Variation). Rates are deemed inclusive of tools, plant, consumables and site clearance necessary to complete the item.`},
+  {n:6, title:'Payment Stages', render:(a)=>{
+      switch(a.paymentMode){
+        case 'fixed': return `${fmtPct(a.advancePct)}% advance along with this Work Order; ${fmtPct(a.stage2Pct)}% on ${fmtVal(a.stage2Milestone,'[milestone]')}; balance ${fmtPct(a.balancePct)}% on completion/handover — each subject to retention as per Clause 7.`;
+        case 'pctComplete': return `${fmtPct(a.pctCompleteRate)}% of Work Order value released each billing cycle against QS-certified progress, subject to retention.`;
+        case 'milestone': return `Payment released against completion of each named deliverable/milestone as follows: ${fmtVal(a.milestoneSchedule,'[milestone schedule]')} — subject to retention.`;
+        case 'measured': return `Payment released each RA bill cycle against quantity executed and certified per the BOQ/Rate Schedule, subject to retention and recoveries.`;
+        default: return `[payment mode not yet selected]`;
+      }
+  }},
+  {n:7, title:'Retention Money', render:(a)=>`${fmtPct(a.retentionPct)}% shall be deducted from every running bill, released upon completion of the Defects Liability Period, or earlier against submission of an equivalent bank guarantee.`},
+  {n:8, title:'Compensation by Extension of Time Only', render:()=>`The Contractor is not entitled to compensation for delays outside its control, including delays caused by the Owner, other agencies or approvals. The sole remedy is an extension of time as approved by the Owner.`},
+  {n:9, title:'Failure to Comply with Instructions', render:()=>`If the Contractor fails to comply with a written PMC/Owner instruction within 7 days of notice, the Owner may engage others to complete the work at the Contractor's cost, recoverable from amounts due or as a debt. Measurements taken and certified by the PMC in the Contractor's absence, after due notice, shall be final.`},
+  {n:10, title:'Quality Compliance', render:()=>`Work shall conform to specifications, drawings and PMC instructions. The Contractor shall generate inspection reports, obtain stage-wise PMC clearance, and bear the cost of testing at approved laboratories. Non-conforming work is subject to rate reduction or rejection at the PMC's discretion.`},
+  {n:11, title:'Defects Liability Period', render:(a)=>`The Contractor is responsible for rectifying defects for ${fmtVal(a.dlpMonths,'6')} months from virtual completion or handover, whichever is earlier, at its own cost; failing which the Owner may rectify at the Contractor's cost.`},
+  {n:12, title:'Water & Electricity Supply', render:()=>`The Owner shall arrange water and electricity at one point on site at its discretion; further distribution is the Contractor's responsibility at its own cost. The Owner is not liable for interruption in supply.`},
+  {n:13, title:'Site Facilities', render:()=>`The Owner may allot land for the Contractor's site office, godown or workshop at its discretion. The Contractor shall construct, maintain and remove these at its own cost on completion, making good any damage.`},
+  {n:14, title:"Contractor's Employees & Labour", render:()=>`The Contractor shall depute a full-time supervising engineer. The PMC/Owner may require removal of any incompetent, negligent or undesirable personnel, to be replaced without delay. All workers must be adults (18+), employed in compliance with applicable labour laws; any resulting Owner liability is recoverable from the Contractor.`},
+  {n:15, title:'Labour Accommodation', render:()=>`No accommodation area is provided by the Owner. The Contractor shall arrange its own labour accommodation, water, sanitation and welfare facilities as required by law, and indemnify the Owner against related claims.`},
+  {n:16, title:'Housekeeping & Site Cleaning', render:()=>`The Contractor shall keep its work areas clean as directed by the PMC; failing which the Owner may engage others and deduct the cost from running bills without prior notice.`},
+  {n:17, title:'Force Majeure', render:()=>`Neither party is liable for failure to perform due to Force Majeure — unforeseeable, unavoidable events beyond reasonable control — provided the affected party notifies the other promptly.`},
+  {n:18, title:'Termination', render:()=>`If the Contractor abandons the work, causes persistent delay, or breaches these terms, the Owner may terminate with 7 days' notice and complete the balance work through others at the Contractor's risk and cost.`},
+  {n:19, title:'Liquidated Damages', render:(a)=> a.ldApplicable==='yes'
+      ? `Time is of the essence. Delay beyond the agreed completion date, not covered under Force Majeure or an approved extension, attracts liquidated damages of ${fmtPct(a.ldRate)}% of the Work Order value per week of delay, capped at ${fmtPct(a.ldCap)}%, as a genuine pre-estimate of loss.`
+      : `Liquidated damages are not applicable to this Work Order.`},
+  {n:20, title:'Variation / Extra Work', render:()=>`No extra work, deviation or change in scope is payable unless approved in writing before execution, except emergency work confirmed by the PMC and regularized within 7 days. Extra-item rates shall use existing Work Order/BOQ rates where comparable; failing that, an approved rate analysis or market rate plus agreed overhead.`},
+  {n:21, title:'GST', render:(a)=> a.gstApplicable==='yes' ? `GST is applicable at ${fmtPct(a.gstRate)}% on this Work Order.` : `GST is not applicable to this Work Order.`},
+  {n:22, title:'TDS', render:(a)=> a.tdsApplicable==='yes'
+      ? `TDS is applicable and shall be deducted by the Client's accounts team as per law; Contractor to furnish PAN and GST registration details.`
+      : `TDS is not applicable to this Work Order (e.g. individual/NRI client).`},
+  {n:23, title:'Statutory Compliance', render:()=>`The Contractor shall comply with applicable labour laws — minimum wages, EPF, ESI, BOCW cess where applicable — for all personnel deployed, and furnish supporting documents on request.`},
+  {n:24, title:'Insurance', render:()=>`The Contractor shall maintain adequate Workmen's Compensation and third-party liability coverage for its personnel and operations at site for the duration of this Work Order.`},
+  {n:25, title:'Mobilization Advance', render:(a)=> a.mobAdvApplicable==='yes'
+      ? `A mobilization advance of ${fmtPct(a.mobAdvPct)}% of Work Order value is payable, recovered pro-rata from running bills${a.mobAdvBG==='yes'?' against submission of an equivalent bank guarantee':''}.`
+      : `No mobilization advance is payable on this Work Order.`},
+  {n:26, title:'Measurement Basis', variable:true, render:(a)=>`Payment shall be based on actual executed and accepted quantity, measured as: ${fmtVal(a.measurementBasis,'per IS 1200 and joint measurement between Contractor and PMC')}. Rejected, defective, incomplete or unapproved work shall not be certified for payment until rectified and accepted.`},
+  {n:27, title:'Billing Documents', render:(a)=>{
+      const chosen = (a.billingDocs||[]);
+      if(!chosen.length) return `Each running bill shall be accompanied by the documents marked as required in Projem's Bill Certification Checklist for this Work Order.`;
+      return `Each running bill shall be accompanied by: ${chosen.join('; ')}.` ;
+  }},
+  {n:28, title:'Free-Issue Material', labourOnly:true, render:(a)=> a.freeIssueApplicable==='yes'
+      ? `Material issued by the Owner shall be used only for the stated work; wastage within approved norms is allowed, unused/scrap material shall be returned as instructed, and overconsumption is recoverable at the issue rate. ${fmtVal(a.freeIssueNotes,'')}`
+      : `No Owner-supplied material applies to this Work Order; the Contractor is fully responsible for material procurement.`},
+  {n:29, title:'Dispute Resolution', render:(a)=>`Disputes shall be resolved by arbitration under the Arbitration and Conciliation Act, 1996, before a sole arbitrator. Courts at ${fmtVal(a.jurisdiction)} shall have exclusive jurisdiction.`}
+];
+
+function applicableClauses(type){
+  return CLAUSES.filter(c=>{
+    if(c.variable && !WO_TYPES[type].variable) return false;
+    if(c.labourOnly && WO_TYPES[type].material) return false;
+    return true;
+  });
+}
+
+/* ============================= APP STATE ============================= */
+let VIEW = {screen:'projects', projectCode:null, wizardStep:0, draft:null};
+
+function go(screen, extra){
+  VIEW.screen = screen;
+  if(extra) Object.assign(VIEW, extra);
+  render();
+}
+
+/* ============================= RENDER ROOT ============================= */
+function render(){
+  document.querySelectorAll('.rail nav button').forEach(b=>b.classList.remove('active'));
+  const navMap = {projects:'projects', register:'register'};
+  const navBtn = document.querySelector(`.rail nav button[data-screen="${navMap[VIEW.screen]||'projects'}"]`);
+  if(navBtn) navBtn.classList.add('active');
+  document.getElementById('navRegister').disabled = false;
+
+  const crumbs = document.getElementById('crumbs');
+  const proj = DB.projects.find(p=>p.code===VIEW.projectCode);
+  crumbs.innerHTML = proj ? `<b>${proj.name}</b><br>${proj.code}` : 'No project selected';
+
+  const main = document.getElementById('main');
+  if(VIEW.screen==='projects') main.innerHTML = screenProjects();
+  else if(VIEW.screen==='contracts') main.innerHTML = screenContracts();
+  else if(VIEW.screen==='wizard') main.innerHTML = screenWizard();
+  else if(VIEW.screen==='preview') main.innerHTML = screenPreview();
+  else if(VIEW.screen==='register') main.innerHTML = screenRegisterAll();
+  bindScreenEvents();
+}
+
+/* ============================= SCREEN: PROJECTS ============================= */
+function screenProjects(){
+  const cards = DB.projects.map(p=>{
+    const count = DB.workOrders.filter(w=>w.projectCode===p.code).length;
+    return `<div class="proj-card" data-open-project="${p.code}">
+      <div class="pcode">${p.code}</div>
+      <h3>${p.name}</h3>
+      <div class="loc">${p.location}</div>
+      <div class="stat"><span>Work Orders <b>${count}</b></span></div>
+    </div>`;
+  }).join('');
+  return `
+    <div class="top"><div><h1>Projects</h1><p class="lede">Select a project to view its Contracts / Work Orders.</p></div></div>
+    <div class="grid g3">${cards}</div>
+  `;
+}
+
+/* ============================= SCREEN: CONTRACTS (per project) ============================= */
+function screenContracts(){
+  const proj = DB.projects.find(p=>p.code===VIEW.projectCode);
+  const wos = DB.workOrders.filter(w=>w.projectCode===proj.code).sort((a,b)=>b.createdAt-a.createdAt);
+  const rows = wos.map(w=>`
+    <tr data-open-wo="${w.id}">
+      <td class="wo-no">${w.woNo}</td>
+      <td>${w.contractorName}</td>
+      <td>${WO_TYPES[w.type].label}</td>
+      <td class="mono">${w.grandTotalDisplay||'—'}</td>
+      <td><span class="pill pill-${w.status}">${w.status==='approved'?'Approved':w.status==='pending'?'Pending Approval':'Draft'}</span></td>
+    </tr>
+  `).join('') || `<tr><td colspan="5" class="empty">No Work Orders yet for this project.</td></tr>`;
+
+  return `
+    <div class="top">
+      <div><h1>${proj.name} — Contracts</h1><p class="lede">${proj.code} · ${proj.location}</p></div>
+      <button class="btn btn-primary" data-go-wizard>+ New Work Order</button>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>WO No.</th><th>Contractor</th><th>Type</th><th>Value</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+/* ============================= SCREEN: WIZARD ============================= */
+const WIZARD_STEPS = ['Category','Contract Details','Clauses','Pre-Issue Checklist'];
+
+function screenWizard(){
+  const d = VIEW.draft;
+  const stepsHtml = WIZARD_STEPS.map((s,i)=>`<span class="${i<=VIEW.wizardStep?'done':''}"></span>`).join('');
+  let body='';
+  if(VIEW.wizardStep===0) body = wizardStepType(d);
+  else if(VIEW.wizardStep===1) body = wizardStepContract(d);
+  else if(VIEW.wizardStep===2) body = wizardStepClauses(d);
+  else if(VIEW.wizardStep===3) body = wizardStepChecklist(d);
+
+  return `
+    <div class="top"><div><h1>New Work Order</h1><p class="lede">Step ${VIEW.wizardStep+1} of ${WIZARD_STEPS.length} — ${WIZARD_STEPS[VIEW.wizardStep]}</p></div></div>
+    <div class="wizard-steps">${stepsHtml}</div>
+    <div class="card">${body}</div>
+    <div class="wizard-actions">
+      <button class="btn btn-ghost" data-wizard-back>${VIEW.wizardStep===0?'Cancel':'Back'}</button>
+      <button class="btn btn-primary" data-wizard-next>${VIEW.wizardStep===3?'Save & Preview Document':'Continue'}</button>
+    </div>
+  `;
+}
+
+function wizardStepType(d){
+  const cards = Object.values(WO_TYPES).map(t=>`
+    <div class="type-card ${d.type===t.code?'sel':''}" data-pick-type="${t.code}">
+      <span class="tag">${t.code}</span>
+      <h4>${t.label}</h4>
+      <p>${t.short}</p>
+    </div>
+  `).join('');
+  return `<div class="grid g4">${cards}</div>`;
+}
+
+function wizardStepContract(d){
+  const contractorOpts = DB.contractors.map(c=>`<option value="${c.name}" ${d.contractorName===c.name?'selected':''}>${c.name}</option>`).join('');
+  const workHeadOpts = (DB.projects.find(p=>p.code===VIEW.projectCode).workHeads||[]).map(h=>`<option value="${h}" ${d.workHead===h?'selected':''}>${h}</option>`).join('');
+  return `
+    <fieldset>
+      <legend>Contractor</legend>
+      <div class="grid g2">
+        <div class="field"><label>Contractor (from master)</label>
+          <select data-field="contractorName"><option value="">— select —</option>${contractorOpts}</select>
+        </div>
+        <div class="field"><label>Work Head</label>
+          <select data-field="workHead"><option value="">— select —</option>${workHeadOpts}</select>
+        </div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Contract</legend>
+      <div class="grid g3">
+        <div class="field"><label>Overall Contract Value (₹)</label><input type="text" data-field="lumpsumPrice" value="${d.lumpsumPrice||''}"></div>
+        <div class="field"><label>Start Date</label><input type="date" data-field="startDate" value="${d.startDate||''}"></div>
+        <div class="field"><label>End Date</label><input type="date" data-field="endDate" value="${d.endDate||''}"></div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Scope</legend>
+      <div class="field"><label>Scope of Works (brief description)</label><textarea data-field="scope">${d.scope||''}</textarea></div>
+    </fieldset>
+  `;
+}
+
+function wizardStepClauses(d){
+  const isVariable = WO_TYPES[d.type].variable;
+  const isMaterial = WO_TYPES[d.type].material;
+
+  const billDocChecks = BILL_DOC_OPTIONS.map((doc,i)=>`
+    <div class="checklist-item"><input type="checkbox" data-billdoc="${doc}" ${(d.billingDocs||[]).includes(doc)?'checked':''}> ${doc}</div>
+  `).join('');
+
+  return `
+    <fieldset>
+      <legend>Payment Stages</legend>
+      <div class="field"><label>Mode</label>
+        <div class="radio-row">
+          ${!isVariable?`<label><input type="radio" name="paymentMode" value="fixed" ${d.paymentMode==='fixed'?'checked':''}> Fixed Stages</label>
+          <label><input type="radio" name="paymentMode" value="pctComplete" ${d.paymentMode==='pctComplete'?'checked':''}> % Complete</label>
+          <label><input type="radio" name="paymentMode" value="milestone" ${d.paymentMode==='milestone'?'checked':''}> Milestone-based</label>`
+          : `<label><input type="radio" name="paymentMode" value="measured" ${d.paymentMode==='measured'?'checked':''}> Measured Quantity / RA Bills</label>`}
+        </div>
+      </div>
+      ${d.paymentMode==='fixed'?`
+        <div class="grid g3">
+          <div class="field"><label>Advance %</label><input type="number" data-field="advancePct" value="${d.advancePct||''}"></div>
+          <div class="field"><label>Stage 2 %</label><input type="number" data-field="stage2Pct" value="${d.stage2Pct||''}"></div>
+          <div class="field"><label>Balance %</label><input type="number" data-field="balancePct" value="${d.balancePct||''}"></div>
+        </div>
+        <div class="field"><label>Stage 2 milestone</label><input type="text" data-field="stage2Milestone" value="${d.stage2Milestone||''}"></div>
+      `:''}
+      ${d.paymentMode==='pctComplete'?`<div class="field"><label>% released per billing cycle</label><input type="number" data-field="pctCompleteRate" value="${d.pctCompleteRate||''}"></div>`:''}
+      ${d.paymentMode==='milestone'?`<div class="field"><label>Milestone schedule</label><textarea data-field="milestoneSchedule">${d.milestoneSchedule||''}</textarea></div>`:''}
+    </fieldset>
+
+    <fieldset>
+      <legend>Retention, GST &amp; TDS</legend>
+      <div class="grid g3">
+        <div class="field"><label>Retention %</label><input type="number" data-field="retentionPct" value="${d.retentionPct||''}"></div>
+        <div class="field"><label>GST applicable?</label>
+          <select data-field="gstApplicable"><option value="">—</option><option value="yes" ${d.gstApplicable==='yes'?'selected':''}>Yes</option><option value="no" ${d.gstApplicable==='no'?'selected':''}>No</option></select>
+        </div>
+        <div class="field"><label>GST rate % (if applicable)</label><input type="number" data-field="gstRate" value="${d.gstRate||''}"></div>
+      </div>
+      <div class="field"><label>TDS applicable?</label>
+        <select data-field="tdsApplicable"><option value="">—</option><option value="yes" ${d.tdsApplicable==='yes'?'selected':''}>Yes</option><option value="no" ${d.tdsApplicable==='no'?'selected':''}>No (e.g. individual/NRI client)</option></select>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Liquidated Damages</legend>
+      <div class="field"><label>LD applicable?</label>
+        <select data-field="ldApplicable"><option value="">—</option><option value="yes" ${d.ldApplicable==='yes'?'selected':''}>Yes</option><option value="no" ${d.ldApplicable==='no'?'selected':''}>No</option></select>
+      </div>
+      ${d.ldApplicable==='yes'?`<div class="grid g2">
+        <div class="field"><label>LD rate % per week</label><input type="number" data-field="ldRate" value="${d.ldRate||''}"></div>
+        <div class="field"><label>LD cap %</label><input type="number" data-field="ldCap" value="${d.ldCap||''}"></div>
+      </div>`:''}
+    </fieldset>
+
+    <fieldset>
+      <legend>Mobilization Advance</legend>
+      <div class="field"><label>Applicable?</label>
+        <select data-field="mobAdvApplicable"><option value="">—</option><option value="yes" ${d.mobAdvApplicable==='yes'?'selected':''}>Yes</option><option value="no" ${d.mobAdvApplicable==='no'?'selected':''}>No</option></select>
+      </div>
+      ${d.mobAdvApplicable==='yes'?`<div class="grid g2">
+        <div class="field"><label>Advance %</label><input type="number" data-field="mobAdvPct" value="${d.mobAdvPct||''}"></div>
+        <div class="field"><label>Against bank guarantee?</label>
+          <select data-field="mobAdvBG"><option value="">—</option><option value="yes" ${d.mobAdvBG==='yes'?'selected':''}>Yes</option><option value="no" ${d.mobAdvBG==='no'?'selected':''}>No</option></select>
+        </div>
+      </div>`:''}
+    </fieldset>
+
+    ${isVariable?`<fieldset><legend>Measurement Basis</legend>
+      <div class="field"><label>Measurement standard/method</label><input type="text" data-field="measurementBasis" placeholder="e.g. per IS 1200 and joint measurement" value="${d.measurementBasis||''}"></div>
+    </fieldset>`:''}
+
+    ${!isMaterial?`<fieldset><legend>Free-Issue Material</legend>
+      <div class="field"><label>Owner-supplied material applies?</label>
+        <select data-field="freeIssueApplicable"><option value="">—</option><option value="yes" ${d.freeIssueApplicable==='yes'?'selected':''}>Yes</option><option value="no" ${d.freeIssueApplicable==='no'?'selected':''}>No</option></select>
+      </div>
+      ${d.freeIssueApplicable==='yes'?`<div class="field"><label>Notes</label><textarea data-field="freeIssueNotes">${d.freeIssueNotes||''}</textarea></div>`:''}
+    </fieldset>`:''}
+
+    <fieldset>
+      <legend>Dispute Resolution</legend>
+      <div class="field"><label>Jurisdiction (court/location)</label><input type="text" data-field="jurisdiction" placeholder="e.g. Kozhikode" value="${d.jurisdiction||''}"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Billing Documents (required per running bill)</legend>
+      ${billDocChecks}
+    </fieldset>
+  `;
+}
+
+function wizardStepChecklist(d){
+  const secs = PRE_ISSUE_CHECKLIST.map((s,si)=>`
+    <fieldset><legend>${s.sec}</legend>
+      ${s.items.map((it,ii)=>`<div class="checklist-item"><input type="checkbox" data-checklist="${si}-${ii}" ${(d.checklist||{})[si+'-'+ii]?'checked':''}> ${it}</div>`).join('')}
+    </fieldset>
+  `).join('');
+  return `<div class="note">Pre-Work Order Review Checklist — complete before the Work Order can be issued.</div>${secs}`;
+}
+
+/* ============================= SCREEN: PREVIEW / DOCUMENT ============================= */
+function screenPreview(){
+  const w = DB.workOrders.find(x=>x.id===VIEW.draft.id);
+  const proj = DB.projects.find(p=>p.code===w.projectCode);
+  const clauses = applicableClauses(w.type).map(c=>`<li><b>${c.title}.</b> ${c.render(w)}</li>`).join('');
+
+  return `
+    <div class="top no-print">
+      <div><h1>Work Order Preview</h1><p class="lede">${w.woNo} · ${w.status==='approved'?'Approved':w.status==='pending'?'Pending Approval':'Draft'}</p></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        ${w.status!=='approved'?`<button class="btn btn-ghost" data-edit-wo="${w.id}">Edit</button>`:`<button class="btn btn-ghost" data-revise-wo="${w.id}">Create Revision</button>`}
+        ${w.status!=='approved'?`<button class="btn btn-ghost" data-approve-wo="${w.id}">Mark Approved</button>`:''}
+        <button class="btn btn-ghost" data-print>Print / Save as PDF</button>
+        <button class="btn btn-primary" data-back-to-contracts>Done</button>
+      </div>
+    </div>
+    <div id="docPreview">
+      <div class="dochead">
+        <div>
+          <div class="co">Projem Consulting Pvt Ltd</div>
+          <div class="addr">2nd floor, Rhythm Commercial, Varthamanam Junction, Chalappuram PO<br>Calicut - 673002, Kerala, India · support@projemconsulting.com</div>
+        </div>
+        <div style="text-align:right" class="mono">
+          <div>${w.woNo}</div>
+          <div>${new Date(w.createdAt).toLocaleDateString('en-IN')}</div>
+        </div>
+      </div>
+      <div class="doctitle">WORK ORDER — ${WO_TYPES[w.type].label}</div>
+
+      <div class="kv-grid">
+        <div class="block">
+          <h5>Contractor Details</h5>
+          <div><b>${w.contractorName}</b></div>
+        </div>
+        <div class="block">
+          <h5>Project Information</h5>
+          <div>${proj.name} (${proj.code})</div>
+          <div>${proj.location} · Work Head: ${w.workHead||'—'}</div>
+          <div>Start: ${w.startDate||'—'} &nbsp; End: ${w.endDate||'—'}</div>
+        </div>
+      </div>
+
+      <div class="amt">
+        <div>Contract Value: <span class="grand">${w.lumpsumPrice? '₹ '+w.lumpsumPrice : '(as per Rate Schedule)'}</span></div>
+      </div>
+
+      <h3 class="sec">ANNEXURE 1 — TERMS AND CONDITIONS</h3>
+      <ol class="clauses">${clauses}</ol>
+
+      <h3 class="sec">ANNEXURE 2 — SAFETY: OBLIGATIONS AND PENALTIES</h3>
+      <p><b>1. Safety &amp; Security.</b> The Contractor shall, at its own expense and as instructed by the PMC, erect and maintain safety barriers, nets and signage around pits, ducts and fall-hazard areas; provide fall-protection measures, a standby emergency vehicle during working hours, and safety warning/display boards; be solely responsible for the safety and security of its labourers, tools and equipment and bear claims or penalties for accidents or injuries, including to neighbours or visitors; ensure all site personnel wear PPE (helmet, gloves, hi-visibility vest, safety footwear, eye protection); and keep electrical installations free of exposed wires or water contact, with proper switches, sockets and cabling.</p>
+      <p><b>2. Penalty Schedule.</b> Violations are penalized financially; serious or repeat violations may lead to temporary or permanent de-listing of the Contractor.</p>
+      <table class="penalty-table">
+        <tr><th>Violation</th><th>Penalty</th></tr>
+        <tr><td>No safety helmet</td><td>Rs. 1,000</td></tr>
+        <tr><td>No safety shoes</td><td>Rs. 1,000</td></tr>
+        <tr><td>No safety goggles (hazardous chemicals/acid/alkali)</td><td>Rs. 1,000</td></tr>
+        <tr><td>No safety belt / full-body harness (work above 2 m)</td><td>Rs. 2,000</td></tr>
+        <tr><td>No face shield (cutting/welding/grinding/acid-alkali maintenance)</td><td>Rs. 1,000</td></tr>
+        <tr><td>No appropriate electric plug-pin</td><td>Rs. 2,000</td></tr>
+        <tr><td>No proper cable</td><td>Rs. 2,000</td></tr>
+      </table>
+      <p style="font-size:11.5px;color:var(--ink-soft)">2nd violation of the same kind: 1.5× the penalty. 3rd violation: 15-day debarment of that Contractor's labour/supervisor from the site.</p>
+
+      <div class="sig">
+        <div>For Owner<br><br><br>Signature</div>
+        <div>Accepted by (Contractor)<br><br><br>Signature</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ============================= SCREEN: REGISTER (all projects) ============================= */
+function screenRegisterAll(){
+  const wos = [...DB.workOrders].sort((a,b)=>b.createdAt-a.createdAt);
+  const rows = wos.map(w=>{
+    const proj = DB.projects.find(p=>p.code===w.projectCode);
+    return `<tr data-open-wo="${w.id}">
+      <td class="wo-no">${w.woNo}</td>
+      <td>${proj?proj.name:w.projectCode}</td>
+      <td>${w.contractorName}</td>
+      <td>${WO_TYPES[w.type].label}</td>
+      <td><span class="pill pill-${w.status}">${w.status==='approved'?'Approved':w.status==='pending'?'Pending Approval':'Draft'}</span></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="5" class="empty">No Work Orders created yet.</td></tr>`;
+  return `
+    <div class="top">
+      <div><h1>Work Order Register</h1><p class="lede">All Work Orders across every project — shared register.</p></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <select id="regProjectPick"><option value="">Select project…</option>${DB.projects.map(p=>`<option value="${p.code}">${p.name}</option>`).join('')}</select>
+        <button class="btn btn-primary" data-go-wizard-from-register>+ New Work Order</button>
+      </div>
+    </div>
+    <div class="card" style="padding:0">
+      <table><thead><tr><th>WO No.</th><th>Project</th><th>Contractor</th><th>Type</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>
+  `;
+}
+
+/* ============================= EVENTS ============================= */
+function bindScreenEvents(){
+  document.querySelectorAll('[data-open-project]').forEach(el=>{
+    el.onclick = ()=> go('contracts', {projectCode: el.dataset.openProject});
+  });
+  const goWiz = document.querySelector('[data-go-wizard]');
+  if(goWiz) goWiz.onclick = ()=>{
+    VIEW.draft = {id:'wo_'+Date.now(), projectCode:VIEW.projectCode, type:null, status:'draft', createdAt:Date.now(), billingDocs:[], checklist:{}};
+    VIEW.returnTo = 'contracts';
+    go('wizard', {wizardStep:0});
+  };
+  const goWizReg = document.querySelector('[data-go-wizard-from-register]');
+  if(goWizReg) goWizReg.onclick = ()=>{
+    const pick = document.getElementById('regProjectPick').value;
+    if(!pick){ alert('Select a project first.'); return; }
+    VIEW.projectCode = pick;
+    VIEW.draft = {id:'wo_'+Date.now(), projectCode:pick, type:null, status:'draft', createdAt:Date.now(), billingDocs:[], checklist:{}};
+    VIEW.returnTo = 'register';
+    go('wizard', {wizardStep:0});
+  };
+
+  document.querySelectorAll('[data-pick-type]').forEach(el=>{
+    el.onclick = ()=>{ VIEW.draft.type = el.dataset.pickType; render(); };
+  });
+
+  document.querySelectorAll('[data-field]').forEach(el=>{
+    el.onchange = ()=>{ VIEW.draft[el.dataset.field] = el.value; render(); };
+  });
+  document.querySelectorAll('input[name="paymentMode"]').forEach(el=>{
+    el.onchange = ()=>{ VIEW.draft.paymentMode = el.value; render(); };
+  });
+  document.querySelectorAll('[data-billdoc]').forEach(el=>{
+    el.onchange = ()=>{
+      const doc = el.dataset.billdoc;
+      VIEW.draft.billingDocs = VIEW.draft.billingDocs || [];
+      if(el.checked){ if(!VIEW.draft.billingDocs.includes(doc)) VIEW.draft.billingDocs.push(doc); }
+      else { VIEW.draft.billingDocs = VIEW.draft.billingDocs.filter(x=>x!==doc); }
+    };
+  });
+  document.querySelectorAll('[data-checklist]').forEach(el=>{
+    el.onchange = ()=>{
+      VIEW.draft.checklist = VIEW.draft.checklist || {};
+      VIEW.draft.checklist[el.dataset.checklist] = el.checked;
+    };
+  });
+
+  const back = document.querySelector('[data-wizard-back]');
+  if(back) back.onclick = ()=>{
+    if(VIEW.wizardStep===0){ go(VIEW.returnTo || 'contracts'); }
+    else { VIEW.wizardStep--; render(); }
+  };
+  const next = document.querySelector('[data-wizard-next]');
+  if(next) next.onclick = ()=>{
+    if(VIEW.wizardStep===0 && !VIEW.draft.type){ alert('Please select a Work Order category.'); return; }
+    if(VIEW.wizardStep<3){ VIEW.wizardStep++; render(); return; }
+    // final step -> save and go to preview
+    finalizeWO();
+  };
+
+  document.querySelectorAll('[data-open-wo]').forEach(el=>{
+    el.onclick = ()=>{
+      const w = DB.workOrders.find(x=>x.id===el.dataset.openWo);
+      VIEW.returnTo = VIEW.screen;
+      go('preview', {draft:{id:w.id}, projectCode:w.projectCode});
+    };
+  });
+  document.querySelectorAll('[data-edit-wo]').forEach(el=>{
+    el.onclick = ()=>{
+      const w = DB.workOrders.find(x=>x.id===el.dataset.editWo);
+      VIEW.draft = w; // same object reference — edits apply in place
+      VIEW.projectCode = w.projectCode;
+      go('wizard', {wizardStep:0});
+    };
+  });
+  document.querySelectorAll('[data-revise-wo]').forEach(el=>{
+    el.onclick = ()=>{
+      const orig = DB.workOrders.find(x=>x.id===el.dataset.reviseWo);
+      const rev = (orig.revision||0)+1;
+      const copy = Object.assign({}, orig, {
+        id:'wo_'+Date.now(), status:'draft', revision:rev, createdAt:Date.now(),
+        woNo: orig.woNo.replace(/-R\d+$/,'') + '-R'+rev
+      });
+      DB.workOrders.push(copy);
+      saveStore();
+      VIEW.draft = copy;
+      VIEW.projectCode = copy.projectCode;
+      go('wizard', {wizardStep:0});
+    };
+  });
+  const approveBtn = document.querySelector('[data-approve-wo]');
+  if(approveBtn) approveBtn.onclick = ()=>{
+    const w = DB.workOrders.find(x=>x.id===approveBtn.dataset.approveWo);
+    w.status='approved'; saveStore(); pushWO(w); render();
+  };
+  const printBtn = document.querySelector('[data-print]');
+  if(printBtn) printBtn.onclick = ()=> window.print();
+  const backC = document.querySelector('[data-back-to-contracts]');
+  if(backC) backC.onclick = ()=> go(VIEW.returnTo || 'contracts');
+}
+
+function nextSeq(projectCode, workHead, typeCode){
+  const existing = DB.workOrders.filter(w=>w.projectCode===projectCode && w.workHead===workHead && w.type===typeCode);
+  return String(existing.length+1).padStart(2,'0');
+}
+
+function finalizeWO(){
+  const d = VIEW.draft;
+  const alreadyInDB = DB.workOrders.some(w=>w.id===d.id);
+  if(!d.woNo){
+    const seq = nextSeq(d.projectCode, d.workHead, d.type);
+    d.woNo = `WO-${d.projectCode}-${d.workHead||'GEN'}-${d.type}-${seq}`;
+  }
+  if(d.status==='draft') d.status = 'pending';
+  d.grandTotalDisplay = d.lumpsumPrice ? ('₹ '+d.lumpsumPrice) : '—';
+  if(!alreadyInDB) DB.workOrders.push(d);
+  saveStore();
+  pushWO(d);
+  if(!VIEW.returnTo) VIEW.returnTo = 'contracts';
+  go('preview', {draft:{id:d.id}});
+}
+
+/* ============================= NAV RAIL ============================= */
+document.querySelectorAll('.rail nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const s = btn.dataset.screen;
+    if(s==='projects') go('projects');
+    if(s==='register') go('register');
+  });
+});
+
+boot();
+</script>
+</body>
+</html>
