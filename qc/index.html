@@ -640,7 +640,7 @@ function signOut(){
         <button data-atab="projects" aria-selected="true">Projects</button>
         <button data-atab="contractors" aria-selected="false">Contractors</button>
         <button data-atab="workorders" aria-selected="false">Work orders</button>
-        <button data-atab="employees" aria-selected="false">Employees</button>
+        <button data-atab="employees" id="atab-employees" aria-selected="false" style="display:none">Employees</button>
       </div>
       <div class="scroll" id="admin-body"></div>
     </section>
@@ -719,6 +719,9 @@ const TYPES = ["Architectural","Structural","Civil works","Services & Utility","
 const BACKEND = "https://script.google.com/macros/s/AKfycbzX1MkEf3ANjxiLpiDGv6D5f2NMsETFU4PdHs8h-fVzRojYT0PN8GcEkFiWnZNAGeur/exec";
 /* admin-managed master data — populated from the backend once signed in; empty until then */
 let PROJECTS_FULL = [], CONTRACTORS_MASTER = [], WORKORDERS_MASTER = [], EMPLOYEES_MASTER = [];
+/* the super admin can manage employees & roles; other admins get Projects/Contractors/Work
+   orders only — matches the server-side check in Code.gs (requireSuperAdmin_) */
+const SUPER_ADMIN_EMAIL = "vijith@projemconsulting.in";
 let DATA = null, ALLITEMS = [], HEADS = [], CATS = {}, ITEMS = [], REFPIC = {}, GUIDE = {};
 let SERVER_TIME = null;
 const SECTIONS = [
@@ -809,7 +812,7 @@ const SEQ = { "FLR-TIL":0 };
 
 const state = { proj:PROJECTS[1], head:["",""], cat:["",""],
   stage:null, ctr:{}, pmc:{}, rems:{}, shots:{}, ticks:{}, sigs:{}, types:new Set(["Architectural","Interiors"]),
-  adminTab:"projects", isAdmin:false };
+  adminTab:"projects", isAdmin:false, isSuperAdmin:false };
 const $ = s => document.querySelector(s);
 const nameOf = k => { const el = $("#n-"+k); return el ? (el.value || "").trim() : ""; };
 const svg = k => `<svg viewBox="0 0 24 24">${IC[k]}</svg>`;
@@ -1369,11 +1372,16 @@ function loadBackend(){
         role:p["Role (admin/pm/pe/se)"]||"se", active: String(p.Active).toLowerCase() !== "no",
         designation:p.Designation||"" }));
 
-      /* admin gate \u2014 server-side checks enforce this for real; this only shows/hides the nav entry */
+      /* admin gate \u2014 server-side checks enforce this for real; this only shows/hides the nav entry.
+         Vijith is the super admin (fixed by email, see SUPER_ADMIN_EMAIL) and is the only one who
+         can manage Employees / grant the admin role. Other admins get Projects, Contractors and
+         Work orders only \u2014 matches requireAdmin_/requireSuperAdmin_ in Code.gs. */
       if(window.__AUTH){
         const me = EMPLOYEES_MASTER.find(p => p.email === String(window.__AUTH.email||"").toLowerCase().trim());
         state.isAdmin = !!(me && me.role === "admin" && me.active);
+        state.isSuperAdmin = state.isAdmin && me.email === SUPER_ADMIN_EMAIL;
         $("#nav-admin").style.display = state.isAdmin ? "" : "none";
+        $("#atab-employees").style.display = state.isSuperAdmin ? "" : "none";
       }
       refreshContractorOptions();
 
@@ -1403,6 +1411,7 @@ function adminPost(entity, data){
 function adminEsc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
 
 function renderAdmin(){
+  if(state.adminTab === "employees" && !state.isSuperAdmin) state.adminTab = "projects";
   document.querySelectorAll("#admin-tabs button").forEach(b =>
     b.setAttribute("aria-selected", String(b.dataset.atab === state.adminTab)));
   const box = $("#admin-body");
@@ -1414,7 +1423,14 @@ function renderAdmin(){
   if(state.adminTab === "projects")    return renderAdminProjects(box);
   if(state.adminTab === "contractors") return renderAdminContractors(box);
   if(state.adminTab === "workorders")  return renderAdminWorkOrders(box);
-  if(state.adminTab === "employees")   return renderAdminEmployees(box);
+  if(state.adminTab === "employees"){
+    if(!state.isSuperAdmin){
+      box.innerHTML = `<p class="admin-empty"><b>Super admin only.</b> Employee records and access
+        roles (including granting admin) can only be managed by the super admin account.</p>`;
+      return;
+    }
+    return renderAdminEmployees(box);
+  }
 }
 $("#admin-tabs").addEventListener("click", e => {
   const b = e.target.closest("[data-atab]"); if(!b) return;
