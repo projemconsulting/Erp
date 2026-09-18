@@ -247,6 +247,7 @@
     <nav>
       <button data-screen="projects" class="active">Projects</button>
       <button data-screen="register" id="navRegister" disabled>Work Orders</button>
+      <button data-screen="admin" id="navAdmin" style="display:none">Admin</button>
     </nav>
     <div class="crumbs" id="crumbs"></div>
     <button class="btn-quiet" id="signOutBtn" style="text-align:left;padding:0;display:none">Sign out</button>
@@ -367,6 +368,9 @@ async function boot(){
   if(chip) chip.textContent = CURRENT_USER.username || CURRENT_USER.name || '';
   if(so){ so.style.display='block'; so.onclick = signOut; }
   await pullFromBackend();
+  MY_PERMISSION = getMyPermission();
+  const navAdmin = document.getElementById('navAdmin');
+  if(navAdmin) navAdmin.style.display = (MY_PERMISSION!=='none') ? '' : 'none';
   render();
 }
 
@@ -385,6 +389,9 @@ function loadStore(){
       {name:'M/s Techno Craft', address:'Near Ashoka Hospital, South Bazar, Civil Station PO, Kannur - 670002', contact:'8606606999', pan:'', gst:''},
       {name:'M/s Silverline Electricals', address:'Mavoor Road, Kozhikode - 673004', contact:'9847012345', pan:'', gst:''},
       {name:'M/s Kairali Builders', address:'Eranhipalam, Kozhikode - 673006', contact:'9744098765', pan:'', gst:''}
+    ],
+    users:[
+      {email:'vijith@projemconsulting.in', isSuperAdmin:'yes', isAdmin:'no', woRole:'GM'}
     ],
     workOrders:[]
   };
@@ -407,6 +414,7 @@ async function pullFromBackend(){
     if(data.projects) DB.projects = data.projects;
     if(data.contractors) DB.contractors = data.contractors;
     if(data.workOrders) DB.workOrders = data.workOrders;
+    if(data.users && data.users.length) DB.users = data.users;
     saveStore(); // keep a local cache for instant reloads / offline viewing
     return true;
   }catch(e){
@@ -427,6 +435,31 @@ async function pushWO(wo){
     console.warn('Backend push failed — change is saved locally but not yet synced:', e);
   }
 }
+
+async function pushRecord(action, record){
+  if(!BACKEND_CONFIGURED) return;
+  try{
+    await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action, record})
+    });
+  }catch(e){
+    console.warn('Backend push failed — change is saved locally but not yet synced:', e);
+  }
+}
+
+/* ============================= PERMISSIONS ============================= */
+function getMyPermission(){
+  if(!CURRENT_USER) return 'none';
+  const email = (CURRENT_USER.username || CURRENT_USER.name || '').toLowerCase();
+  const u = (DB.users||[]).find(x=>(x.email||'').toLowerCase()===email);
+  if(!u) return 'none';
+  if(u.isSuperAdmin==='yes') return 'superadmin';
+  if(u.isAdmin==='yes') return 'admin';
+  return 'none';
+}
+let MY_PERMISSION = 'none';
 
 /* ============================= WO TYPES ============================= */
 const WO_TYPES = {
@@ -566,7 +599,7 @@ function applicableClauses(type){
 }
 
 /* ============================= APP STATE ============================= */
-let VIEW = {screen:'projects', projectCode:null, wizardStep:0, draft:null};
+let VIEW = {screen:'projects', projectCode:null, wizardStep:0, draft:null, adminEdit:null};
 
 function go(screen, extra){
   VIEW.screen = screen;
@@ -577,7 +610,7 @@ function go(screen, extra){
 /* ============================= RENDER ROOT ============================= */
 function render(){
   document.querySelectorAll('.rail nav button').forEach(b=>b.classList.remove('active'));
-  const navMap = {projects:'projects', register:'register'};
+  const navMap = {projects:'projects', register:'register', admin:'admin'};
   const navBtn = document.querySelector(`.rail nav button[data-screen="${navMap[VIEW.screen]||'projects'}"]`);
   if(navBtn) navBtn.classList.add('active');
   document.getElementById('navRegister').disabled = false;
@@ -592,6 +625,7 @@ function render(){
   else if(VIEW.screen==='wizard') main.innerHTML = screenWizard();
   else if(VIEW.screen==='preview') main.innerHTML = screenPreview();
   else if(VIEW.screen==='register') main.innerHTML = screenRegisterAll();
+  else if(VIEW.screen==='admin') main.innerHTML = (MY_PERMISSION!=='none') ? screenAdmin() : `<div class="empty">You don't have admin access.</div>`;
   bindScreenEvents();
 }
 
@@ -905,6 +939,140 @@ function screenRegisterAll(){
   `;
 }
 
+/* ============================= SCREEN: ADMIN ============================= */
+function screenAdmin(){
+  const isSuper = MY_PERMISSION==='superadmin';
+  const ae = VIEW.adminEdit;
+
+  const usersRows = (DB.users||[]).map((u,i)=>`
+    <tr>
+      <td>${u.email}</td>
+      <td>${u.isSuperAdmin==='yes'?'Super Admin':u.isAdmin==='yes'?'Admin':'—'}</td>
+      <td>${u.woRole||'—'}</td>
+      <td>${isSuper?`<button class="btn-quiet" data-edit-user="${i}">Edit</button>`:''}</td>
+    </tr>`).join('') || `<tr><td colspan="4" class="empty">No users yet.</td></tr>`;
+
+  const projRows = (DB.projects||[]).map((p,i)=>`
+    <tr>
+      <td class="mono">${p.code}</td>
+      <td>${p.name}</td>
+      <td>${p.location}</td>
+      <td>${(p.workHeads||[]).join(', ')}</td>
+      <td><button class="btn-quiet" data-edit-project="${i}">Edit</button></td>
+    </tr>`).join('') || `<tr><td colspan="5" class="empty">No projects yet.</td></tr>`;
+
+  const contRows = (DB.contractors||[]).map((c,i)=>`
+    <tr>
+      <td>${c.name}</td>
+      <td>${c.address}</td>
+      <td>${c.contact}</td>
+      <td><button class="btn-quiet" data-edit-contractor="${i}">Edit</button></td>
+    </tr>`).join('') || `<tr><td colspan="4" class="empty">No contractors yet.</td></tr>`;
+
+  return `
+    <div class="top"><div><h1>Admin</h1><p class="lede">${isSuper?'Super Admin':'Admin'} — manage users, projects and contractors.</p></div></div>
+
+    ${isSuper?`
+    <h3 class="sec" style="margin-top:0">Users</h3>
+    <div class="card" style="padding:0;margin-bottom:20px">
+      <table><thead><tr><th>Email</th><th>Role</th><th>WO Role</th><th></th></tr></thead>
+      <tbody>${usersRows}</tbody></table>
+    </div>
+    <button class="btn btn-ghost" data-add-user style="margin-bottom:24px">+ Add User</button>
+    ${ae && ae.type==='user' ? adminUserForm(ae.index) : ''}
+    `:''}
+
+    <h3 class="sec">Projects</h3>
+    <div class="card" style="padding:0;margin-bottom:20px">
+      <table><thead><tr><th>Code</th><th>Name</th><th>Location</th><th>Work Heads</th><th></th></tr></thead>
+      <tbody>${projRows}</tbody></table>
+    </div>
+    <button class="btn btn-ghost" data-add-project style="margin-bottom:24px">+ Add Project</button>
+    ${ae && ae.type==='project' ? adminProjectForm(ae.index) : ''}
+
+    <h3 class="sec">Contractors</h3>
+    <div class="card" style="padding:0;margin-bottom:20px">
+      <table><thead><tr><th>Name</th><th>Address</th><th>Contact</th><th></th></tr></thead>
+      <tbody>${contRows}</tbody></table>
+    </div>
+    <button class="btn btn-ghost" data-add-contractor>+ Add Contractor</button>
+    ${ae && ae.type==='contractor' ? adminContractorForm(ae.index) : ''}
+  `;
+}
+
+function adminUserForm(index){
+  const u = (index!=null && DB.users[index]) ? DB.users[index] : {email:'',isSuperAdmin:'no',isAdmin:'yes',woRole:''};
+  return `<div class="card" style="margin-bottom:24px">
+    <fieldset>
+      <legend>${index!=null?'Edit User':'New User'}</legend>
+      <div class="grid g3">
+        <div class="field"><label>Email</label><input type="text" id="adm_user_email" value="${u.email}" placeholder="name@projemconsulting.in"></div>
+        <div class="field"><label>Role</label>
+          <select id="adm_user_role">
+            <option value="admin" ${u.isAdmin==='yes'&&u.isSuperAdmin!=='yes'?'selected':''}>Admin</option>
+            <option value="superadmin" ${u.isSuperAdmin==='yes'?'selected':''}>Super Admin</option>
+            <option value="none" ${u.isAdmin!=='yes'&&u.isSuperAdmin!=='yes'?'selected':''}>No admin access</option>
+          </select>
+        </div>
+        <div class="field"><label>WO Role</label>
+          <select id="adm_user_worole">
+            <option value="" ${!u.woRole?'selected':''}>—</option>
+            <option value="QS" ${u.woRole==='QS'?'selected':''}>QS / Contracts Engineer</option>
+            <option value="PM" ${u.woRole==='PM'?'selected':''}>Project Manager</option>
+            <option value="GM" ${u.woRole==='GM'?'selected':''}>General Manager</option>
+            <option value="CM" ${u.woRole==='CM'?'selected':''}>Contracts Manager</option>
+          </select>
+        </div>
+      </div>
+    </fieldset>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" data-save-user="${index!=null?index:''}">Save</button>
+      <button class="btn btn-ghost" data-cancel-admin-edit>Cancel</button>
+    </div>
+  </div>`;
+}
+
+function adminProjectForm(index){
+  const p = (index!=null && DB.projects[index]) ? DB.projects[index] : {code:'',name:'',location:'',workHeads:[]};
+  return `<div class="card" style="margin-bottom:24px">
+    <fieldset>
+      <legend>${index!=null?'Edit Project':'New Project'}</legend>
+      <div class="grid g2">
+        <div class="field"><label>Project Code</label><input type="text" id="adm_proj_code" value="${p.code}"></div>
+        <div class="field"><label>Project Name</label><input type="text" id="adm_proj_name" value="${p.name}"></div>
+      </div>
+      <div class="grid g2">
+        <div class="field"><label>Location</label><input type="text" id="adm_proj_location" value="${p.location}"></div>
+        <div class="field"><label>Work Heads (comma-separated codes)</label><input type="text" id="adm_proj_workheads" value="${(p.workHeads||[]).join(', ')}" placeholder="ELE, CIV, PLB"></div>
+      </div>
+    </fieldset>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" data-save-project="${index!=null?index:''}">Save</button>
+      <button class="btn btn-ghost" data-cancel-admin-edit>Cancel</button>
+    </div>
+  </div>`;
+}
+
+function adminContractorForm(index){
+  const c = (index!=null && DB.contractors[index]) ? DB.contractors[index] : {name:'',address:'',contact:'',pan:'',gst:''};
+  return `<div class="card" style="margin-bottom:24px">
+    <fieldset>
+      <legend>${index!=null?'Edit Contractor':'New Contractor'}</legend>
+      <div class="field"><label>Name</label><input type="text" id="adm_cont_name" value="${c.name}"></div>
+      <div class="field"><label>Address</label><input type="text" id="adm_cont_address" value="${c.address}"></div>
+      <div class="grid g3">
+        <div class="field"><label>Contact No.</label><input type="text" id="adm_cont_contact" value="${c.contact}"></div>
+        <div class="field"><label>PAN</label><input type="text" id="adm_cont_pan" value="${c.pan||''}"></div>
+        <div class="field"><label>GST</label><input type="text" id="adm_cont_gst" value="${c.gst||''}"></div>
+      </div>
+    </fieldset>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" data-save-contractor="${index!=null?index:''}">Save</button>
+      <button class="btn btn-ghost" data-cancel-admin-edit>Cancel</button>
+    </div>
+  </div>`;
+}
+
 /* ============================= EVENTS ============================= */
 function bindScreenEvents(){
   document.querySelectorAll('[data-open-project]').forEach(el=>{
@@ -1003,6 +1171,80 @@ function bindScreenEvents(){
   if(printBtn) printBtn.onclick = ()=> window.print();
   const backC = document.querySelector('[data-back-to-contracts]');
   if(backC) backC.onclick = ()=> go(VIEW.returnTo || 'contracts');
+
+  // Admin screen
+  const addUser = document.querySelector('[data-add-user]');
+  if(addUser) addUser.onclick = ()=>{ VIEW.adminEdit = {type:'user', index:null}; render(); };
+  document.querySelectorAll('[data-edit-user]').forEach(el=>{
+    el.onclick = ()=>{ VIEW.adminEdit = {type:'user', index: Number(el.dataset.editUser)}; render(); };
+  });
+  const addProject = document.querySelector('[data-add-project]');
+  if(addProject) addProject.onclick = ()=>{ VIEW.adminEdit = {type:'project', index:null}; render(); };
+  document.querySelectorAll('[data-edit-project]').forEach(el=>{
+    el.onclick = ()=>{ VIEW.adminEdit = {type:'project', index: Number(el.dataset.editProject)}; render(); };
+  });
+  const addContractor = document.querySelector('[data-add-contractor]');
+  if(addContractor) addContractor.onclick = ()=>{ VIEW.adminEdit = {type:'contractor', index:null}; render(); };
+  document.querySelectorAll('[data-edit-contractor]').forEach(el=>{
+    el.onclick = ()=>{ VIEW.adminEdit = {type:'contractor', index: Number(el.dataset.editContractor)}; render(); };
+  });
+  const cancelAdmin = document.querySelector('[data-cancel-admin-edit]');
+  if(cancelAdmin) cancelAdmin.onclick = ()=>{ VIEW.adminEdit = null; render(); };
+
+  const saveUserBtn = document.querySelector('[data-save-user]');
+  if(saveUserBtn) saveUserBtn.onclick = ()=>{
+    const idxAttr = saveUserBtn.dataset.saveUser;
+    const idx = idxAttr==='' ? null : Number(idxAttr);
+    const role = document.getElementById('adm_user_role').value;
+    const rec = {
+      email: document.getElementById('adm_user_email').value.trim(),
+      isSuperAdmin: role==='superadmin' ? 'yes' : 'no',
+      isAdmin: role==='admin' ? 'yes' : 'no',
+      woRole: document.getElementById('adm_user_worole').value
+    };
+    if(!rec.email){ alert('Email is required.'); return; }
+    DB.users = DB.users || [];
+    if(idx!=null) DB.users[idx] = rec; else DB.users.push(rec);
+    saveStore(); pushRecord('saveUser', rec);
+    VIEW.adminEdit = null;
+    if(rec.email.toLowerCase() === (CURRENT_USER.username||'').toLowerCase()){ MY_PERMISSION = getMyPermission(); }
+    render();
+  };
+  const saveProjectBtn = document.querySelector('[data-save-project]');
+  if(saveProjectBtn) saveProjectBtn.onclick = ()=>{
+    const idxAttr = saveProjectBtn.dataset.saveProject;
+    const idx = idxAttr==='' ? null : Number(idxAttr);
+    const rec = {
+      code: document.getElementById('adm_proj_code').value.trim(),
+      name: document.getElementById('adm_proj_name').value.trim(),
+      location: document.getElementById('adm_proj_location').value.trim(),
+      workHeads: document.getElementById('adm_proj_workheads').value.split(',').map(s=>s.trim()).filter(Boolean)
+    };
+    if(!rec.code || !rec.name){ alert('Project Code and Name are required.'); return; }
+    DB.projects = DB.projects || [];
+    if(idx!=null) DB.projects[idx] = rec; else DB.projects.push(rec);
+    saveStore(); pushRecord('saveProject', rec);
+    VIEW.adminEdit = null;
+    render();
+  };
+  const saveContractorBtn = document.querySelector('[data-save-contractor]');
+  if(saveContractorBtn) saveContractorBtn.onclick = ()=>{
+    const idxAttr = saveContractorBtn.dataset.saveContractor;
+    const idx = idxAttr==='' ? null : Number(idxAttr);
+    const rec = {
+      name: document.getElementById('adm_cont_name').value.trim(),
+      address: document.getElementById('adm_cont_address').value.trim(),
+      contact: document.getElementById('adm_cont_contact').value.trim(),
+      pan: document.getElementById('adm_cont_pan').value.trim(),
+      gst: document.getElementById('adm_cont_gst').value.trim()
+    };
+    if(!rec.name){ alert('Contractor name is required.'); return; }
+    DB.contractors = DB.contractors || [];
+    if(idx!=null) DB.contractors[idx] = rec; else DB.contractors.push(rec);
+    saveStore(); pushRecord('saveContractor', rec);
+    VIEW.adminEdit = null;
+    render();
+  };
 }
 
 function nextSeq(projectCode, workHead, typeCode){
@@ -1032,6 +1274,7 @@ document.querySelectorAll('.rail nav button').forEach(btn=>{
     const s = btn.dataset.screen;
     if(s==='projects') go('projects');
     if(s==='register') go('register');
+    if(s==='admin') go('admin');
   });
 });
 
