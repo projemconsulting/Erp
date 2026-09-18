@@ -381,9 +381,30 @@ function loadStore(){
   }catch(e){}
   return {
     projects:[
-      {code:'PM RS 25 280', name:'Madhavalayam', location:'Thondayad, Calicut', workHeads:['ELE','CIV','PLB']},
-      {code:'PM IS 25 284', name:'Lovr Westfort Hospital', location:'Thrissur', workHeads:['ELE','HVC','CIV']},
-      {code:'PM HC 26 041', name:'Hilite Cyber Tower', location:'Kozhikode', workHeads:['MEP','ELE','ELV']}
+      {code:'PM- RS 23- 251', name:'Dr Vishnu Residence', client:'Dr. Vishnu Moham', location:'Bathey', status:'Active'},
+      {code:'PM- CM 23- 254', name:'Hotel @ Madikeri', client:'M/s. Swara Hospitality', location:'Madikeri', status:'Active'},
+      {code:'PM- CM 24- 265', name:'CSI Commercial', client:'M/s. CSI', location:'Manjeri', status:'Active'},
+      {code:'PM- HS 25- 276', name:'V Zone Paradise Apartment', client:'Dr. VK Chandran', location:'Kozhikode', status:'Active'},
+      {code:'PM- IS 25- 277', name:'MSSRF Bio Diversity Park', client:'M/s. MSSRF', location:'Wayanad', status:'Active'},
+      {code:'PM- HS 25- 278', name:'CSI Villa', client:'M/s. CSI', location:'Wayanad', status:'Active'},
+      {code:'PM- HS 25- 279', name:'Enso', client:'', location:'Hoskte', status:'Active'},
+      {code:'PM- RS 25- 280', name:'Madhavalayam', client:'Mr. Vishwanathan', location:'Kozhikode', status:'Active'},
+      {code:'PM- IS 25- 281', name:'Jayalakshmi Vilas Mansion', client:'M/s. DHF', location:'Mysore', status:'Active'},
+      {code:'PM- RS 25- 282', name:'Jamal Residence', client:'Mr. Jamal', location:'Vadakara', status:'Active'},
+      {code:'PM- IS 25- 283', name:'BMH Care Hospital', client:'M/s. BMH Care', location:'Perumbavoor', status:'Active'},
+      {code:'PM- IS 25- 284', name:'LIMS', client:'M/s. Lims', location:'Thrissur', status:'Active'},
+      {code:'PM-CM 25- 285', name:'Zackle Corporate office', client:'M/s. Zackle Engineering', location:'Kozhikode', status:'Active'},
+      {code:'PM-CM 25- 286', name:'Ulsavam Hotel', client:'Mr. Praveen', location:'Kozhikode', status:'Active'},
+      {code:'PM-CM 25- 287', name:'Collines De Resort', client:'M/s. Collines', location:'Wayanad', status:'Active'},
+      {code:'PM-CM 25- 288', name:'Flora Resort', client:'M/s. Flora Hospitality', location:'Wayanad', status:'Active'},
+      {code:'PM-HS 26- 289', name:'QDL Apartment', client:'', location:'Kozhikode', status:'Active'},
+      {code:'PM-CM 26- 290', name:'Sandbox Mini Tech Park', client:'', location:'Kozhikode', status:'Active'},
+      {code:'PM-HS 26- 291', name:'Tetris Apartment', client:'M/s. Sandbox', location:'Kozhikode', status:'Active'},
+      {code:'PM-CM 26- 292', name:'Noviya Auditorium', client:'Mr. Majeed', location:'Kozhikode', status:'Active'},
+      {code:'PM-CM 26- 293', name:'Nishka Jewellery', client:'M/s. Nishka', location:'Kozhikode', status:'Active'},
+      {code:'PM-CM 26- 294', name:'Kalamassery Commercial', client:'', location:'Ernakulam', status:'Active'},
+      {code:'PM-IS 26- 295', name:'Silver Hills Institution- New Block', client:'', location:'Kozhikode', status:'Active'},
+      {code:'PM-CM 26- 296', name:'Sandeep commercial', client:'Mr. Sandeep', location:'Kozhikode', status:'Active'}
     ],
     contractors:[
       {name:'M/s Techno Craft', address:'Near Ashoka Hospital, South Bazar, Civil Station PO, Kannur - 670002', contact:'8606606999', pan:'', gst:''},
@@ -468,6 +489,9 @@ const WO_TYPES = {
   VL:{code:'VL', label:'Variable-Qty Labour', short:'Item-rate, labour only', material:false, variable:true},
   VM:{code:'VM', label:'Variable-Qty Labour + Material', short:'Item-rate, labour and material', material:true, variable:true}
 };
+
+// Standard work head codes — same 26 used in the QC Checklist app
+const WORK_HEAD_CODES = ['FDN','CIV','SFB','FLR','PNT','PLB','ELE','HVC','HSE','MOB','ELV','STP','WTP','SOL','RWH','INT','FCL','LSC','AMN','SPF','FRN','JNR','FFA','BMS','EXM','BPN'];
 
 const BILL_DOC_OPTIONS = [
   'Bill abstract sheet (BOQ format, previous/present/cumulative qty & amount)',
@@ -636,7 +660,7 @@ function screenProjects(){
     return `<div class="proj-card" data-open-project="${p.code}">
       <div class="pcode">${p.code}</div>
       <h3>${p.name}</h3>
-      <div class="loc">${p.location}</div>
+      <div class="loc">${p.client ? p.client+' · ' : ''}${p.location}</div>
       <div class="stat"><span>Work Orders <b>${count}</b></span></div>
     </div>`;
   }).join('');
@@ -710,7 +734,7 @@ function wizardStepType(d){
 
 function wizardStepContract(d){
   const contractorOpts = DB.contractors.map(c=>`<option value="${c.name}" ${d.contractorName===c.name?'selected':''}>${c.name}</option>`).join('');
-  const workHeadOpts = (DB.projects.find(p=>p.code===VIEW.projectCode).workHeads||[]).map(h=>`<option value="${h}" ${d.workHead===h?'selected':''}>${h}</option>`).join('');
+  const workHeadOpts = WORK_HEAD_CODES.map(h=>`<option value="${h}" ${d.workHead===h?'selected':''}>${h}</option>`).join('');
   return `
     <fieldset>
       <legend>Contractor</legend>
@@ -876,6 +900,7 @@ function screenPreview(){
         <div class="block">
           <h5>Project Information</h5>
           <div>${proj.name} (${proj.code})</div>
+          ${proj.client?`<div>Client: ${proj.client}</div>`:''}
           <div>${proj.location} · Work Head: ${w.workHead||'—'}</div>
           <div>Start: ${w.startDate||'—'} &nbsp; End: ${w.endDate||'—'}</div>
         </div>
@@ -956,10 +981,11 @@ function screenAdmin(){
     <tr>
       <td class="mono">${p.code}</td>
       <td>${p.name}</td>
+      <td>${p.client||'—'}</td>
       <td>${p.location}</td>
-      <td>${(p.workHeads||[]).join(', ')}</td>
+      <td>${p.status||'—'}</td>
       <td><button class="btn-quiet" data-edit-project="${i}">Edit</button></td>
-    </tr>`).join('') || `<tr><td colspan="5" class="empty">No projects yet.</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="6" class="empty">No projects yet.</td></tr>`;
 
   const contRows = (DB.contractors||[]).map((c,i)=>`
     <tr>
@@ -984,7 +1010,7 @@ function screenAdmin(){
 
     <h3 class="sec">Projects</h3>
     <div class="card" style="padding:0;margin-bottom:20px">
-      <table><thead><tr><th>Code</th><th>Name</th><th>Location</th><th>Work Heads</th><th></th></tr></thead>
+      <table><thead><tr><th>Code</th><th>Name</th><th>Client</th><th>Location</th><th>Status</th><th></th></tr></thead>
       <tbody>${projRows}</tbody></table>
     </div>
     <button class="btn btn-ghost" data-add-project style="margin-bottom:24px">+ Add Project</button>
@@ -1033,7 +1059,7 @@ function adminUserForm(index){
 }
 
 function adminProjectForm(index){
-  const p = (index!=null && DB.projects[index]) ? DB.projects[index] : {code:'',name:'',location:'',workHeads:[]};
+  const p = (index!=null && DB.projects[index]) ? DB.projects[index] : {code:'',name:'',client:'',location:'',status:'Active'};
   return `<div class="card" style="margin-bottom:24px">
     <fieldset>
       <legend>${index!=null?'Edit Project':'New Project'}</legend>
@@ -1041,9 +1067,15 @@ function adminProjectForm(index){
         <div class="field"><label>Project Code</label><input type="text" id="adm_proj_code" value="${p.code}"></div>
         <div class="field"><label>Project Name</label><input type="text" id="adm_proj_name" value="${p.name}"></div>
       </div>
-      <div class="grid g2">
+      <div class="grid g3">
+        <div class="field"><label>Client</label><input type="text" id="adm_proj_client" value="${p.client||''}"></div>
         <div class="field"><label>Location</label><input type="text" id="adm_proj_location" value="${p.location}"></div>
-        <div class="field"><label>Work Heads (comma-separated codes)</label><input type="text" id="adm_proj_workheads" value="${(p.workHeads||[]).join(', ')}" placeholder="ELE, CIV, PLB"></div>
+        <div class="field"><label>Status</label>
+          <select id="adm_proj_status">
+            <option value="Active" ${p.status!=='Inactive'?'selected':''}>Active</option>
+            <option value="Inactive" ${p.status==='Inactive'?'selected':''}>Inactive</option>
+          </select>
+        </div>
       </div>
     </fieldset>
     <div style="display:flex;gap:10px">
@@ -1217,8 +1249,9 @@ function bindScreenEvents(){
     const rec = {
       code: document.getElementById('adm_proj_code').value.trim(),
       name: document.getElementById('adm_proj_name').value.trim(),
+      client: document.getElementById('adm_proj_client').value.trim(),
       location: document.getElementById('adm_proj_location').value.trim(),
-      workHeads: document.getElementById('adm_proj_workheads').value.split(',').map(s=>s.trim()).filter(Boolean)
+      status: document.getElementById('adm_proj_status').value
     };
     if(!rec.code || !rec.name){ alert('Project Code and Name are required.'); return; }
     DB.projects = DB.projects || [];
